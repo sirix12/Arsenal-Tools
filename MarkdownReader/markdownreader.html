@@ -6,32 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Beautiful Markdown & Math Reader</title>
 
-    <!-- Google Fonts -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Fira+Code:wght@400;500&display=swap"
         rel="stylesheet">
-
-    <!-- Marked.js for Markdown Parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
-    <!-- NEW: Marked-Highlight Extension (Fixes the removed marked.setOptions crash) -->
     <script src="https://cdn.jsdelivr.net/npm/marked-highlight/lib/index.umd.js"></script>
-
-    <!-- KaTeX for Math & Equations -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-
-    <!-- Marked-KaTeX Extension -->
     <script src="https://cdn.jsdelivr.net/npm/marked-katex-extension@5.1.7/lib/index.umd.js"></script>
-
-    <!-- Highlight.js for Syntax Highlighting -->
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
     <style>
         :root {
-            /* Light Theme */
             --bg-color: #fafafa;
             --surface-color: #ffffff;
             --text-primary: #111827;
@@ -45,14 +33,12 @@
             --code-text: #abb2bf;
             --nav-bg: rgba(255, 255, 255, 0.85);
 
-            /* Typography */
             --font-sans: 'Inter', sans-serif;
             --font-serif: 'Merriweather', serif;
             --font-mono: 'Fira Code', monospace;
         }
 
         [data-theme="dark"] {
-            /* Dark Theme */
             --bg-color: #0f1115;
             --surface-color: #1a1d24;
             --text-primary: #f3f4f6;
@@ -80,7 +66,6 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Progress Bar */
         #progress-container {
             position: fixed;
             top: 0;
@@ -98,7 +83,6 @@
             transition: width 0.1s;
         }
 
-        /* Navigation */
         header {
             position: fixed;
             top: 0;
@@ -167,7 +151,6 @@
             padding: 0.5rem;
         }
 
-        /* Main Layout */
         main {
             padding-top: 80px;
             min-height: 100vh;
@@ -175,7 +158,6 @@
             justify-content: center;
         }
 
-        /* Editor Section */
         #input-section {
             width: 100%;
             max-width: 1200px;
@@ -216,7 +198,6 @@
             display: none;
         }
 
-        /* Reader Section */
         #reader-section {
             display: none;
             width: 92%;
@@ -240,7 +221,6 @@
             gap: 1.5rem;
         }
 
-        /* Markdown Styles */
         .markdown-body {
             font-family: var(--font-sans);
             font-size: 1.15rem;
@@ -309,7 +289,6 @@
             color: var(--text-secondary);
         }
 
-        /* Code Styles */
         .markdown-body code {
             font-family: var(--font-mono);
             background-color: var(--quote-bg);
@@ -334,7 +313,6 @@
             font-size: 0.9em;
         }
 
-        /* Equation/Math Specific Styling */
         .katex-display {
             overflow-x: auto;
             overflow-y: hidden;
@@ -346,13 +324,11 @@
             font-size: 1.15em;
         }
 
-        /* FIX: Prevent global box-sizing and transitions from breaking KaTeX Layout (e.g. \sqrt and unicode elements) */
         .katex * {
             box-sizing: content-box !important;
             transition: none !important;
         }
 
-        /* Tables, Images, & Figures */
         .markdown-body img {
             max-width: 100%;
             border-radius: 8px;
@@ -365,8 +341,6 @@
             border-radius: 8px;
         }
 
-        /* In dark mode, diagrams with black strokes become invisible. 
-           Adding an off-white background ensures readability. */
         [data-theme="dark"] .markdown-body svg:not(.katex svg) {
             background-color: #f8f9fa;
             padding: 1rem;
@@ -432,7 +406,6 @@
             background: var(--text-secondary);
         }
 
-        /* Highlights */
         mark {
             background-color: rgba(250, 204, 21, 0.4);
             color: inherit;
@@ -444,16 +417,17 @@
             background-color: rgba(250, 204, 21, 0.3);
         }
 
-        /* Print / PDF Export Styles */
         @media print {
             @page {
-                margin: 0; /* Removes browser headers and footers */
+                margin: 0;
             }
+
             body {
                 background: white !important;
                 color: black !important;
                 margin: 1.5cm !important;
             }
+
             [data-theme="dark"] {
                 --bg-color: #ffffff;
                 --surface-color: #ffffff;
@@ -464,9 +438,14 @@
                 --quote-bg: #f5f5f5;
                 --quote-border: #999999;
             }
-            header, #input-section, #progress-container, #highlight-btn {
+
+            header,
+            #input-section,
+            #progress-container,
+            #highlight-btn {
                 display: none !important;
             }
+
             #reader-section {
                 display: block !important;
                 max-width: 100% !important;
@@ -474,25 +453,26 @@
                 padding: 0 !important;
                 margin: 0 !important;
             }
+
             .reader-meta {
                 display: none !important;
             }
-            /* Content-aware page breaks */
-            .markdown-body pre, 
-            .markdown-body blockquote, 
-            .markdown-body tr, 
-            .markdown-body img, 
-            .markdown-body svg, 
+
+            .markdown-body pre,
+            .markdown-body blockquote,
+            .markdown-body tr,
+            .markdown-body img,
+            .markdown-body svg,
             .katex-display {
                 page-break-inside: avoid;
                 break-inside: avoid;
             }
-            
-            .markdown-body h1, 
-            .markdown-body h2, 
-            .markdown-body h3, 
-            .markdown-body h4, 
-            .markdown-body h5, 
+
+            .markdown-body h1,
+            .markdown-body h2,
+            .markdown-body h3,
+            .markdown-body h4,
+            .markdown-body h5,
             .markdown-body h6 {
                 page-break-after: avoid;
                 break-after: avoid;
@@ -500,13 +480,14 @@
                 break-inside: avoid;
             }
 
-            .markdown-body p, 
+            .markdown-body p,
             .markdown-body li {
                 page-break-inside: avoid;
                 break-inside: avoid;
             }
 
-            .markdown-body img, .markdown-body svg {
+            .markdown-body img,
+            .markdown-body svg {
                 max-width: 100% !important;
             }
 
@@ -552,7 +533,8 @@
             </button>
 
             <button id="btn-save" class="hidden" title="Save as .md">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                     <polyline points="17 21 17 13 7 13 7 21"></polyline>
                     <polyline points="7 3 7 8 15 8"></polyline>
@@ -561,7 +543,8 @@
             </button>
 
             <button id="btn-pdf" class="hidden" title="Export as PDF">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14 2 14 8 20 8"></polyline>
                     <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -636,10 +619,6 @@
     </main>
 
     <script>
-        // --- 1. Configurations ---
-
-        // FIX #1: Configure Highlight.js for Code blocks using the modern `markedHighlight` Extension
-        // (marked.setOptions is entirely removed in latest marked versions and crashes the code)
         const { markedHighlight } = window.markedHighlight;
         marked.use(markedHighlight({
             emptyLangClass: 'hljs',
@@ -650,15 +629,13 @@
             }
         }));
 
-        // FIX #2: Configure KaTeX for Math Equations ($ and $$)
         marked.use(window.markedKatex({
             throwOnError: false,
             output: 'html',
-            nonStandard: true        // CRITICAL FIX: Allows you to render block equations ($$) inline without extra new lines!
+            nonStandard: true
         }));
 
 
-        // --- 2. DOM Elements ---
         const themeBtn = document.getElementById('btn-theme');
         const widthBtn = document.getElementById('btn-width');
         const htmlDoc = document.documentElement;
@@ -675,7 +652,6 @@
 
         mdInput.value = document.getElementById('sample-markdown').textContent.trim();
 
-        // --- 3. Themes & Screen Width Logic ---
         function initTheme() {
             const savedTheme = localStorage.getItem('md-reader-theme') || 'dark';
             setTheme(savedTheme);
@@ -696,7 +672,6 @@
             readerSection.classList.toggle('full-width');
         });
 
-        // --- 4. Render Logic ---
         function calculateReadingStats(text) {
             const cleanText = text.replace(/[#*`_\[\]()$]/g, '');
             const count = cleanText.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -709,19 +684,13 @@
             let markdownText = mdInput.value;
             if (!markdownText.trim()) return;
 
-            // FIX: Marked.js correctly treats blank lines as the termination of standard HTML blocks.
-            // As a result, blank lines inside an embedded <svg> will cause the rest of the SVG 
-            // (especially indented paths) to be incorrectly parsed as markdown code blocks!
-            // We fix this by stripping empty lines inside <svg> tags before handing off to Marked.
             markdownText = markdownText.replace(/<svg[\s\S]*?<\/svg>/gi, (match) => {
                 return match.replace(/\n\s*\n/g, '\n');
             });
 
-            // Render Markdown and Equations to HTML
             readerContent.innerHTML = marked.parse(markdownText);
             calculateReadingStats(markdownText);
 
-            // Toggle UI
             inputSection.style.display = 'none';
             readerSection.style.display = 'block';
             btnEdit.classList.remove('hidden');
@@ -745,7 +714,6 @@
             progressBar.style.width = '0%';
         });
 
-        // --- 5. File Upload ---
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -757,7 +725,6 @@
             reader.readAsText(file);
         });
 
-        // --- 6. Reading Progress Bar ---
         function updateProgressBar() {
             if (readerSection.style.display === 'none') return;
             const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
@@ -766,7 +733,6 @@
         }
         window.addEventListener('scroll', updateProgressBar);
 
-        // --- 7. Save File Logic ---
         const btnSave = document.getElementById('btn-save');
         btnSave.addEventListener('click', async () => {
             const markdownText = mdInput.value;
@@ -774,7 +740,6 @@
 
             try {
                 if (window.showSaveFilePicker) {
-                    // Modern File System Access API
                     const handle = await window.showSaveFilePicker({
                         types: [{
                             description: 'Markdown Files',
@@ -786,7 +751,6 @@
                     await writable.write(markdownText);
                     await writable.close();
                 } else {
-                    // Fallback for older browsers
                     const blob = new Blob([markdownText], { type: 'text/markdown' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -807,13 +771,10 @@
 
         const btnPdf = document.getElementById('btn-pdf');
         btnPdf.addEventListener('click', () => {
-            // Use a tiny timeout to let UI update before printing blocks the thread
             setTimeout(() => {
                 window.print();
             }, 100);
         });
-
-        // --- 8. Text Highlighting ---
         const highlightBtn = document.createElement('button');
         highlightBtn.id = 'highlight-btn';
         highlightBtn.innerHTML = `
@@ -871,7 +832,7 @@
 
             const selectedText = selection.toString();
             const mdText = mdInput.value;
-            
+
             const range = selection.getRangeAt(0);
             const preCaretRange = range.cloneRange();
             preCaretRange.selectNodeContents(readerContent);
@@ -906,22 +867,18 @@
                 }
             }
 
-            // Check if it's already highlighted
             const beforeStr = mdText.substring(bestIndex - 6, bestIndex);
             const afterStr = mdText.substring(bestIndex + selectedText.length, bestIndex + selectedText.length + 7);
 
             let newMdText = mdText;
             if (beforeStr === '<mark>' && afterStr === '</mark>') {
-                // Unhighlight
                 newMdText = mdText.substring(0, bestIndex - 6) + selectedText + mdText.substring(bestIndex + selectedText.length + 7);
             } else {
-                // Highlight
                 newMdText = mdText.substring(0, bestIndex) + '<mark>' + selectedText + '</mark>' + mdText.substring(bestIndex + selectedText.length);
             }
 
             mdInput.value = newMdText;
-            
-            // Re-render
+
             const currentScrollY = window.scrollY;
             renderToReader();
             window.scrollTo(0, currentScrollY);
@@ -930,7 +887,6 @@
             window.getSelection().removeAllRanges();
         });
 
-        // Initialize App
         initTheme();
     </script>
 </body>
