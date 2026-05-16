@@ -48,7 +48,7 @@ header {
   align-items: center;
 }
 
-.logo { font-size: 1.5rem; font-weight: 700; background: linear-gradient(to right, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; cursor: pointer; }
+.logo { font-size: 1.5rem; font-weight: 700; background: linear-gradient(to right, #3b82f6, #8b5cf6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; cursor: pointer; }
 
 .theme-toggle { background: none; border: none; color: var(--text-color); font-size: 1.5rem; cursor: pointer; }
 
