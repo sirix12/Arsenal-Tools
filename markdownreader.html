@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beautiful Markdown & Math Reader</title>
+
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+
+    <!-- Marked.js for Markdown Parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- NEW: Marked-Highlight Extension (Fixes the removed marked.setOptions crash) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked-highlight/lib/index.umd.js"></script>
+
+    <!-- KaTeX for Math & Equations -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
+    <!-- Marked-KaTeX Extension -->
+    <script src="https://cdn.jsdelivr.net/npm/marked-katex-extension@5.1.7/lib/index.umd.js"></script>
+
+    <!-- Highlight.js for Syntax Highlighting -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+    <style>
+        :root {
+            /* Light Theme */
+            --bg-color: #fafafa;
+            --surface-color: #ffffff;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --accent-color: #2563eb;
+            --accent-hover: #1d4ed8;
+            --border-color: #e5e7eb;
+            --quote-bg: #f3f4f6;
+            --quote-border: #9ca3af;
+            --code-bg: #1e1e24;
+            --code-text: #abb2bf;
+            --nav-bg: rgba(255, 255, 255, 0.85);
+
+            /* Typography */
+            --font-sans: 'Inter', sans-serif;
+            --font-serif: 'Merriweather', serif;
+            --font-mono: 'Fira Code', monospace;
+        }
+
+        [data-theme="dark"] {
+            /* Dark Theme */
+            --bg-color: #0f1115;
+            --surface-color: #1a1d24;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-color: #60a5fa;
+            --accent-hover: #3b82f6;
+            --border-color: #374151;
+            --quote-bg: #1f2937;
+            --quote-border: #4b5563;
+            --nav-bg: rgba(15, 17, 21, 0.85);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.8;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Progress Bar */
+        #progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: transparent;
+            z-index: 1000;
+        }
+
+        #progress-bar {
+            height: 100%;
+            background: var(--accent-color);
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        /* Navigation */
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: 65px;
+            background: var(--nav-bg);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+            z-index: 100;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-primary);
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+        }
+
+        button,
+        .btn {
+            background-color: var(--surface-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: var(--font-sans);
+            font-weight: 500;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover,
+        .btn:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+            color: white;
+        }
+
+        .icon-btn {
+            padding: 0.5rem;
+        }
+
+        /* Main Layout */
+        main {
+            padding-top: 80px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Editor Section */
+        #input-section {
+            width: 100%;
+            max-width: 1200px;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: calc(100vh - 80px);
+        }
+
+        .input-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        textarea {
+            flex-grow: 1;
+            width: 100%;
+            background-color: var(--surface-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            font-family: var(--font-mono);
+            font-size: 15px;
+            resize: none;
+            outline: none;
+            line-height: 1.6;
+        }
+
+        textarea:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Reader Section */
+        #reader-section {
+            display: none;
+            width: 92%;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1rem 8rem 1rem;
+            transition: max-width 0.4s ease;
+        }
+
+        #reader-section.full-width {
+            max-width: 1600px;
+        }
+
+        .reader-meta {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        /* Markdown Styles */
+        .markdown-body {
+            font-family: var(--font-sans);
+            font-size: 1.15rem;
+            color: var(--text-primary);
+        }
+
+        .markdown-body h1,
+        .markdown-body h2,
+        .markdown-body h3,
+        .markdown-body h4,
+        .markdown-body h5,
+        .markdown-body h6 {
+            color: var(--text-primary);
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .markdown-body h1 {
+            font-size: 2.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .markdown-body h2 {
+            font-size: 1.8rem;
+            margin-top: 3rem;
+        }
+
+        .markdown-body h3 {
+            font-size: 1.4rem;
+            color: var(--accent-color);
+        }
+
+        .markdown-body p {
+            margin-bottom: 1.5rem;
+        }
+
+        .markdown-body a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+
+        .markdown-body a:hover {
+            text-decoration: underline;
+        }
+
+        .markdown-body ul,
+        .markdown-body ol {
+            margin-bottom: 1.5rem;
+            padding-left: 2rem;
+        }
+
+        .markdown-body li {
+            margin-bottom: 0.5rem;
+        }
+
+        .markdown-body blockquote {
+            margin: 2rem 0;
+            padding: 1.2rem 1.5rem;
+            background: var(--quote-bg);
+            border-left: 4px solid var(--accent-color);
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        /* Code Styles */
+        .markdown-body code {
+            font-family: var(--font-mono);
+            background-color: var(--quote-bg);
+            color: var(--text-primary);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .markdown-body pre {
+            background-color: var(--code-bg);
+            border-radius: 8px;
+            padding: 1.2rem;
+            margin: 2rem 0;
+            overflow-x: auto;
+        }
+
+        .markdown-body pre code {
+            background-color: transparent;
+            color: var(--code-text);
+            padding: 0;
+            font-size: 0.9em;
+        }
+
+        /* Equation/Math Specific Styling */
+        .katex-display {
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 1rem 0;
+            margin: 1.5rem 0;
+        }
+
+        .katex {
+            font-size: 1.15em;
+        }
+
+        /* FIX: Prevent global box-sizing and transitions from breaking KaTeX Layout (e.g. \sqrt and unicode elements) */
+        .katex * {
+            box-sizing: content-box !important;
+            transition: none !important;
+        }
+
+        /* Tables, Images, & Figures */
+        .markdown-body img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+
+        .markdown-body svg:not(.katex svg) {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        /* In dark mode, diagrams with black strokes become invisible. 
+           Adding an off-white background ensures readability. */
+        [data-theme="dark"] .markdown-body svg:not(.katex svg) {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            box-sizing: content-box;
+            border: 1px solid #374151;
+        }
+
+        .markdown-body figure {
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        .markdown-body figcaption {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+        }
+
+        .markdown-body th,
+        .markdown-body td {
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            text-align: left;
+        }
+
+        .markdown-body th {
+            background-color: var(--quote-bg);
+        }
+
+        .markdown-body hr {
+            border: 0;
+            height: 1px;
+            background: var(--border-color);
+            margin: 3rem 0;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+    </style>
+</head>
+
+<body>
+
+    <script type="text/markdown" id="sample-markdown">
+
+    </script>
+
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+
+    <header>
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            MD Reader Pro
+        </div>
+        <div class="controls">
+            <button id="btn-edit" class="hidden">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Edit
+            </button>
+
+            <button id="btn-save" class="hidden" title="Save as .md">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                Save
+            </button>
+
+            <button id="btn-width" class="icon-btn hidden" title="Toggle Full Width">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
+                    </path>
+                </svg>
+            </button>
+
+            <button id="btn-theme" class="icon-btn" title="Toggle Theme">
+                <svg id="icon-sun" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg id="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <section id="input-section">
+            <div class="input-header">
+                <p>Paste your Markdown (with LaTeX math!) below, or upload a .md file.</p>
+                <label class="btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    Upload File
+                    <input type="file" id="file-input" accept=".md,.txt,.markdown">
+                </label>
+            </div>
+
+            <textarea id="md-input"></textarea>
+
+            <button id="btn-read" class="btn-primary" style="padding: 1rem; font-size: 1.1rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+                Read Document
+            </button>
+        </section>
+
+        <section id="reader-section">
+            <div class="reader-meta">
+                <span id="word-count">0 Words</span>
+                <span id="read-time">0 min read</span>
+            </div>
+            <article id="reader-content" class="markdown-body"></article>
+        </section>
+    </main>
+
+    <script>
+        // --- 1. Configurations ---
+
+        // FIX #1: Configure Highlight.js for Code blocks using the modern `markedHighlight` Extension
+        // (marked.setOptions is entirely removed in latest marked versions and crashes the code)
+        const { markedHighlight } = window.markedHighlight;
+        marked.use(markedHighlight({
+            emptyLangClass: 'hljs',
+            langPrefix: 'hljs language-',
+            highlight(code, lang) {
+                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                return hljs.highlight(code, { language }).value;
+            }
+        }));
+
+        // FIX #2: Configure KaTeX for Math Equations ($ and $$)
+        marked.use(window.markedKatex({
+            throwOnError: false,
+            output: 'html',
+            nonStandard: true        // CRITICAL FIX: Allows you to render block equations ($$) inline without extra new lines!
+        }));
+
+
+        // --- 2. DOM Elements ---
+        const themeBtn = document.getElementById('btn-theme');
+        const widthBtn = document.getElementById('btn-width');
+        const htmlDoc = document.documentElement;
+
+        const inputSection = document.getElementById('input-section');
+        const readerSection = document.getElementById('reader-section');
+        const mdInput = document.getElementById('md-input');
+        const fileInput = document.getElementById('file-input');
+
+        const btnRead = document.getElementById('btn-read');
+        const btnEdit = document.getElementById('btn-edit');
+        const readerContent = document.getElementById('reader-content');
+        const progressBar = document.getElementById('progress-bar');
+
+        mdInput.value = document.getElementById('sample-markdown').textContent.trim();
+
+        // --- 3. Themes & Screen Width Logic ---
+        function initTheme() {
+            const savedTheme = localStorage.getItem('md-reader-theme') || 'dark';
+            setTheme(savedTheme);
+        }
+
+        function setTheme(theme) {
+            htmlDoc.setAttribute('data-theme', theme);
+            localStorage.setItem('md-reader-theme', theme);
+            document.getElementById('icon-moon').classList.toggle('hidden', theme === 'dark');
+            document.getElementById('icon-sun').classList.toggle('hidden', theme === 'light');
+        }
+
+        themeBtn.addEventListener('click', () => {
+            setTheme(htmlDoc.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
+        });
+
+        widthBtn.addEventListener('click', () => {
+            readerSection.classList.toggle('full-width');
+        });
+
+        // --- 4. Render Logic ---
+        function calculateReadingStats(text) {
+            const cleanText = text.replace(/[#*`_\[\]()$]/g, '');
+            const count = cleanText.trim().split(/\s+/).filter(word => word.length > 0).length;
+            const time = Math.max(1, Math.ceil(count / 200));
+            document.getElementById('word-count').textContent = `${count} Words`;
+            document.getElementById('read-time').textContent = `${time} min read`;
+        }
+
+        function renderToReader() {
+            let markdownText = mdInput.value;
+            if (!markdownText.trim()) return;
+
+            // FIX: Marked.js correctly treats blank lines as the termination of standard HTML blocks.
+            // As a result, blank lines inside an embedded <svg> will cause the rest of the SVG 
+            // (especially indented paths) to be incorrectly parsed as markdown code blocks!
+            // We fix this by stripping empty lines inside <svg> tags before handing off to Marked.
+            markdownText = markdownText.replace(/<svg[\s\S]*?<\/svg>/gi, (match) => {
+                return match.replace(/\n\s*\n/g, '\n');
+            });
+
+            // Render Markdown and Equations to HTML
+            readerContent.innerHTML = marked.parse(markdownText);
+            calculateReadingStats(markdownText);
+
+            // Toggle UI
+            inputSection.style.display = 'none';
+            readerSection.style.display = 'block';
+            btnEdit.classList.remove('hidden');
+            widthBtn.classList.remove('hidden');
+            document.getElementById('btn-save').classList.remove('hidden');
+
+            window.scrollTo(0, 0);
+            updateProgressBar();
+        }
+
+        btnRead.addEventListener('click', renderToReader);
+
+        btnEdit.addEventListener('click', () => {
+            readerSection.style.display = 'none';
+            inputSection.style.display = 'flex';
+            btnEdit.classList.add('hidden');
+            widthBtn.classList.add('hidden');
+            document.getElementById('btn-save').classList.add('hidden');
+            progressBar.style.width = '0%';
+        });
+
+        // --- 5. File Upload ---
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                mdInput.value = event.target.result;
+                renderToReader();
+            };
+            reader.readAsText(file);
+        });
+
+        // --- 6. Reading Progress Bar ---
+        function updateProgressBar() {
+            if (readerSection.style.display === 'none') return;
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            progressBar.style.width = height === 0 ? '0%' : (winScroll / height) * 100 + '%';
+        }
+        window.addEventListener('scroll', updateProgressBar);
+
+        // --- 7. Save File Logic ---
+        const btnSave = document.getElementById('btn-save');
+        btnSave.addEventListener('click', async () => {
+            const markdownText = mdInput.value;
+            if (!markdownText && !confirm('The document is empty. Save anyway?')) return;
+
+            try {
+                if (window.showSaveFilePicker) {
+                    // Modern File System Access API
+                    const handle = await window.showSaveFilePicker({
+                        types: [{
+                            description: 'Markdown Files',
+                            accept: { 'text/markdown': ['.md', '.markdown'] },
+                        }],
+                        suggestedName: 'document.md'
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(markdownText);
+                    await writable.close();
+                } else {
+                    // Fallback for older browsers
+                    const blob = new Blob([markdownText], { type: 'text/markdown' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'document.md';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Error saving file:', err);
+                    alert('Failed to save the file.');
+                }
+            }
+        });
+
+        // Initialize App
+        initTheme();
+    </script>
+</body>
+
+</html>
