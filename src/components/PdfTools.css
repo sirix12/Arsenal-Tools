@@ -1,0 +1,294 @@
+/* ============================================================
+   PDF Tools Styles
+   ============================================================ */
+
+/* ---------- Landing ---------- */
+.pdf-landing {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.pdf-cat-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 1rem;
+}
+
+.pdf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.pdf-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+.pdf-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+}
+
+.pdf-card-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.pdf-card-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.3rem;
+}
+
+.pdf-card-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ---------- Workspace ---------- */
+.pdf-workspace {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem 2rem 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+}
+
+.pdf-ws-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* ---------- Dropzone ---------- */
+.pdf-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem;
+  border: 2px dashed var(--glass-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: center;
+}
+
+.pdf-dropzone:hover,
+.pdf-dropzone.dragover {
+  border-color: var(--primary);
+  background: var(--primary-dim);
+}
+
+.pdf-dz-icon { font-size: 3rem; }
+
+.pdf-dropzone h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.pdf-dropzone p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* ---------- File list ---------- */
+.pdf-file-list {
+  list-style: none;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pdf-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  padding: 0.4rem 0;
+}
+
+/* ---------- Thumbnails ---------- */
+.pdf-thumbnails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+}
+
+.pdf-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem;
+  border: 2px solid transparent;
+  transition: all var(--transition);
+}
+
+.pdf-thumb img {
+  width: 90px;
+  border-radius: 4px;
+  box-shadow: var(--shadow-sm);
+}
+
+.pdf-thumb.selected {
+  border-color: var(--primary);
+  background: var(--primary-dim);
+}
+
+.pdf-thumb:hover { border-color: var(--glass-border-hover); }
+
+.pdf-thumb-num {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Controls ---------- */
+.pdf-control-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.pdf-control-row label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.pdf-select {
+  flex: 1;
+  background: var(--bg-dark);
+  color: var(--text-main);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.pdf-select:focus { border-color: var(--primary); }
+
+/* ---------- Status ---------- */
+.pdf-status {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+}
+.pdf-status-info    { background: var(--primary-dim); color: #a78bfa; border-color: rgba(139,92,246,0.2); }
+.pdf-status-success { background: var(--success-bg);  color: #34d399; border-color: rgba(16,185,129,0.3); }
+.pdf-status-error   { background: var(--error-bg);    color: #fca5a5; border-color: rgba(239,68,68,0.3); }
+
+/* ---------- Action button ---------- */
+.pdf-action-btn {
+  font-size: 1rem;
+  padding: 0.85rem 2rem;
+  align-self: flex-start;
+}
+
+/* ---------- Markdown editor ---------- */
+.pdf-md-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pdf-md-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  min-height: 450px;
+}
+
+.pdf-md-input {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-main);
+  padding: 1.25rem;
+  resize: none;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  outline: none;
+  background: var(--bg-surface);
+}
+
+.pdf-md-input:focus { border-color: var(--primary); }
+
+.pdf-md-preview {
+  padding: 1.5rem;
+  overflow-y: auto;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-main);
+}
+
+.markdown-preview h1, .markdown-preview h2, .markdown-preview h3 { margin: 1rem 0 0.5rem; }
+.markdown-preview code {
+  background: var(--primary-dim); color: #c084fc;
+  padding: 0.1rem 0.4rem; border-radius: 4px;
+  font-family: var(--font-mono); font-size: 0.85em;
+}
+.markdown-preview pre { background: #0d1117; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+.markdown-preview pre code { background: transparent; color: #abb2bf; }
+.markdown-preview blockquote {
+  border-left: 4px solid var(--primary);
+  padding: 0.75rem 1rem;
+  background: var(--primary-dim);
+  margin: 1rem 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 700px) {
+  .pdf-md-panes { grid-template-columns: 1fr; }
+  .pdf-grid { grid-template-columns: 1fr; }
+}
