@@ -1,16 +1,94 @@
-# React + Vite
+# ⚡ Arsenal Tools
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Arsenal Tools is a premium, high-performance suite of browser-based productivity tools. Built with a focus on privacy, security, and aesthetics, all tools process your files directly in the browser—your files never leave your device.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🛠️ Included Tools
 
-## React Compiler
+### 1. 📝 MD Reader Pro
+A robust Markdown reader and editor with full preview capabilities.
+- **LaTeX Math Support:** Built-in renders for complex mathematical formulas using KaTeX.
+- **Syntax Highlighting:** Live highlighting of code blocks.
+- **Rich Previewing:** Supports tables, task lists, and custom styling.
+- **Exporting:** Save files back to `.md` or export directly to PDF.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 2. 🧰 PDF Toolkit
+A client-side utility suite for common PDF manipulation tasks.
+- **Merge & Split:** Easily combine multiple PDFs or extract specific pages.
+- **Compression:** Optimize and reduce PDF file sizes.
+- **Conversions:** Convert Word documents (`.docx`) and images (`.png`, `.jpg`) to PDF in the browser.
+- **Extraction:** Export PDF pages as standalone images or extract textual content.
 
-## Expanding the Oxlint configuration
+### 3. 🧠 Quiz Generator
+An interactive learning and testing platform.
+- **JSON Input:** Import custom quizzes from AI-generated JSON question formats.
+- **Progress Tracking:** Tracks correct answers, scores, and saves completion history.
+- **Rich Content:** Support for explanations, syntax-highlighted code questions, and clean transitions.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+---
+
+## 🔒 Privacy First
+
+Because all logic runs in your browser, this tool is:
+- **100% Private:** No files are uploaded to external servers.
+- **Offline Capable:** Works without active internet connections once loaded.
+- **Secure:** Zero telemetry or data tracking.
+
+---
+
+## 💻 Tech Stack
+
+- **Framework:** [React 19](https://react.dev/) + [Vite 8](https://vite.dev/)
+- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/) + CSS Variables for dynamic Dark/Light themes
+- **Routing:** [React Router 7](https://reactrouter.com/)
+- **Libraries:**
+  - `marked` (Markdown parsing)
+  - `katex` (Math typesetting)
+  - `pdf-lib` & `docx` & `mammoth` (Document operations)
+  - `jszip` & `html2canvas` (Asset processing)
+  - `lucide-react` (Modern icons)
+- **Linting:** [Oxlint](https://oxc.rs/)
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+Make sure you have [Node.js](https://nodejs.org/) installed.
+
+### Installation
+
+1. Clone or download the repository:
+   ```bash
+   cd Arsenal-Tools
+   ```
+
+2. Install the dependencies:
+   ```bash
+   npm install
+   ```
+
+### Running Locally
+
+To start the Vite development server with Hot Module Replacement (HMR):
+```bash
+npm run dev
+```
+
+To lint the codebase using Oxlint:
+```bash
+npm run lint
+```
+
+To compile the application for production:
+```bash
+npm run build
+```
+
+To locally preview the production build:
+```bash
+npm run preview
+```
+
