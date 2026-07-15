@@ -133,13 +133,62 @@
   margin-left: auto;
 }
 
-/* ---------- Markdown body ---------- */
+/* ---------- Markdown body — scoped tokens (dark defaults) ---------- */
 .markdown-body {
+  /* Dark mode defaults */
+  --md-h3:           #7eb8d4;
+  --md-h4:           #9db8c8;
+  --md-link:         #38bdf8;
+  --md-link-hover:   #7dd3fc;
+  --md-link-ul:      rgba(56, 189, 248, 0.3);
+  --md-link-ul-hov:  rgba(125, 211, 252, 0.6);
+  --md-code-bg:      rgba(251, 191, 36, 0.12);
+  --md-code-fg:      #fbbf24;
+  --md-code-border:  rgba(251, 191, 36, 0.22);
+  --md-bq-bg:        rgba(255, 255, 255, 0.045);
+  --md-bq-border:    #7eb8d4;
+  --md-pre-bg:       #0d1117;
+  --md-pre-fg:       #abb2bf;
+
   font-family: var(--font-sans);
   font-size: 1.125rem;
   line-height: 1.9;
   color: var(--text-main);
   letter-spacing: 0.01em;
+}
+
+/* ---- Light mode token overrides ---- */
+@media (prefers-color-scheme: light) {
+  .markdown-body {
+    --md-h3:           #1e6091;   /* deep ocean blue */
+    --md-h4:           #2d6a8f;
+    --md-link:         #1558b0;   /* classic blue — excellent contrast on white */
+    --md-link-hover:   #0d3d7a;
+    --md-link-ul:      rgba(21, 88, 176, 0.35);
+    --md-link-ul-hov:  rgba(13, 61, 122, 0.5);
+    --md-code-bg:      rgba(180, 100, 0, 0.08);  /* warm amber tint, not glaring */
+    --md-code-fg:      #92400e;   /* dark amber-brown — high contrast */
+    --md-code-border:  rgba(146, 64, 14, 0.2);
+    --md-bq-bg:        rgba(30, 96, 145, 0.06);
+    --md-bq-border:    #1e6091;
+    --md-pre-bg:       #1e2430;   /* keep dark for syntax highlighting clarity */
+    --md-pre-fg:       #d4d8e1;
+  }
+}
+[data-theme="light"] .markdown-body {
+  --md-h3:           #1e6091;
+  --md-h4:           #2d6a8f;
+  --md-link:         #1558b0;
+  --md-link-hover:   #0d3d7a;
+  --md-link-ul:      rgba(21, 88, 176, 0.35);
+  --md-link-ul-hov:  rgba(13, 61, 122, 0.5);
+  --md-code-bg:      rgba(180, 100, 0, 0.08);
+  --md-code-fg:      #92400e;
+  --md-code-border:  rgba(146, 64, 14, 0.2);
+  --md-bq-bg:        rgba(30, 96, 145, 0.06);
+  --md-bq-border:    #1e6091;
+  --md-pre-bg:       #1e2430;
+  --md-pre-fg:       #d4d8e1;
 }
 
 .markdown-body h1,
@@ -165,24 +214,20 @@
   padding-bottom: 0.3rem;
 }
 
-/* h3: soft steel-blue — readable on dark bg */
-.markdown-body h3 { font-size: 1.4rem; color: #7eb8d4; }
-
-/* h4: slightly muted white */
-.markdown-body h4 { font-size: 1.15rem; color: #b0c4d4; }
+.markdown-body h3 { font-size: 1.4rem; color: var(--md-h3); }
+.markdown-body h4 { font-size: 1.15rem; color: var(--md-h4); }
 
 .markdown-body p { margin-bottom: 1.5rem; }
 
-/* Links: teal — high contrast and clearly distinct from body text */
 .markdown-body a {
-  color: #38bdf8;
+  color: var(--md-link);
   text-decoration: none;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+  border-bottom: 1px solid var(--md-link-ul);
   transition: color 0.15s, border-color 0.15s;
 }
 .markdown-body a:hover {
-  color: #7dd3fc;
-  border-bottom-color: rgba(125, 211, 252, 0.6);
+  color: var(--md-link-hover);
+  border-bottom-color: var(--md-link-ul-hov);
 }
 
 .markdown-body ul,
@@ -196,9 +241,8 @@
 .markdown-body blockquote {
   margin: 2rem 0;
   padding: 1.2rem 1.5rem;
-  /* Neutral warm surface — no purple tint */
-  background: rgba(255, 255, 255, 0.04);
-  border-left: 4px solid #7eb8d4;
+  background: var(--md-bq-bg);
+  border-left: 4px solid var(--md-bq-border);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   font-style: italic;
   color: var(--text-muted);
@@ -207,16 +251,15 @@
 .markdown-body code {
   font-family: var(--font-mono);
   font-size: 0.85em;
-  /* Warm amber — easy on the eyes, clearly different from body text */
-  background: rgba(251, 191, 36, 0.1);
-  color: #fbbf24;
+  background: var(--md-code-bg);
+  color: var(--md-code-fg);
   padding: 0.15rem 0.45rem;
   border-radius: 4px;
-  border: 1px solid rgba(251, 191, 36, 0.2);
+  border: 1px solid var(--md-code-border);
 }
 
 .markdown-body pre {
-  background: #0d1117;
+  background: var(--md-pre-bg);
   border-radius: var(--radius-md);
   padding: 1.25rem;
   margin: 2rem 0;
@@ -226,7 +269,7 @@
 
 .markdown-body pre code {
   background: transparent;
-  color: #abb2bf;
+  color: var(--md-pre-fg);
   padding: 0;
   border: none;
   font-size: 0.9em;
