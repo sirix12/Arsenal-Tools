@@ -38,6 +38,7 @@ const CDN = {
 export default function MarkdownReader() {
   const [view, setView] = useState('input'); // 'input' | 'reader'
   const [mdText, setMdText] = useState('');
+  const [renderedHtml, setRenderedHtml] = useState('');
   const [wordCount, setWordCount] = useState(0);
   const [readTime, setReadTime] = useState(0);
   const [ready, setReady] = useState(false);
@@ -100,11 +101,18 @@ export default function MarkdownReader() {
   const render = useCallback(() => {
     if (!mdText.trim() || !ready) return;
     const html = window.marked.parse(mdText);
-    if (readerRef.current) readerRef.current.innerHTML = html;
+    setRenderedHtml(html);
     calcStats(mdText);
     setView('reader');
     window.scrollTo(0, 0);
   }, [mdText, ready]);
+
+  /* Inject rendered HTML after reader view mounts */
+  useEffect(() => {
+    if (view === 'reader' && readerRef.current) {
+      readerRef.current.innerHTML = renderedHtml;
+    }
+  }, [view, renderedHtml]);
 
   const handleFile = (e) => {
     const file = e.target.files[0];
