@@ -367,3 +367,65 @@ mark {
   font-size: 85%;
   opacity: 0.7;
 }
+
+/* PDF Export Overlay Styling */
+.pdf-export-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.85); /* Semi-transparent backdrop */
+  backdrop-filter: blur(4px);
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #f8fafc;
+}
+
+.pdf-export-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  font-weight: 500;
+  font-size: 1.2rem;
+  z-index: 10;
+  color: #f8fafc !important;
+}
+
+.pdf-export-loader p {
+  margin: 0;
+}
+
+.pdf-export-loader .spinner {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+  border-color: rgba(255, 255, 255, 0.2);
+  border-top-color: var(--primary, #8b5cf6);
+}
+
+/* Print container layout and scoping */
+.pdf-print-container {
+  position: absolute;
+  top: 100vh;
+  left: 100vw;
+  width: 780px;
+  background: #ffffff !important;
+  z-index: -1;
+  box-sizing: border-box;
+}
+
+/* Force light mode styles on the print container specifically */
+.pdf-print-container[data-theme="light"] {
+  --bg-darkest:  #ffffff;
+  --bg-dark:     #ffffff;
+  --bg-surface:  #ffffff;
+  --text-main:   #0f172a;
+  --text-muted:  #475569;
+  --text-subtle: #94a3b8;
+  --glass-border: rgba(0, 0, 0, 0.08);
+}

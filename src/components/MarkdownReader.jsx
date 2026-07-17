@@ -151,34 +151,41 @@ export default function MarkdownReader() {
     if (!readerRef.current || generatingPdf) return;
     setGeneratingPdf(true);
 
+    let overlay = null;
     try {
       const originalElement = readerRef.current;
       const clonedElement = originalElement.cloneNode(true);
 
-      const container = document.createElement('div');
-      container.setAttribute('data-theme', 'light');
-      
-      Object.assign(container.style, {
-        background: '#ffffff',
-        color: '#0f172a',
-        padding: '20px',
-        width: '780px',
-        position: 'absolute',
-        left: '-9999px',
-        top: '0',
-        boxSizing: 'border-box'
-      });
+      // Create loading overlay
+      overlay = document.createElement('div');
+      overlay.className = 'pdf-export-overlay';
+
+      const loader = document.createElement('div');
+      loader.className = 'pdf-export-loader';
+      loader.innerHTML = '<span class="spinner"></span><p>Generating PDF... Please wait.</p>';
+      overlay.appendChild(loader);
+
+      // Hidden but layout-active container
+      const printContainer = document.createElement('div');
+      printContainer.className = 'pdf-print-container';
+      printContainer.setAttribute('data-theme', 'light');
 
       clonedElement.classList.add('markdown-body', 'md-pdf-print');
       Object.assign(clonedElement.style, {
-        background: 'transparent',
-        padding: '0',
-        margin: '0',
-        width: '100%'
+        background: '#ffffff',
+        color: '#0f172a',
+        padding: '30px',
+        width: '780px',
+        margin: '0 auto',
+        boxSizing: 'border-box'
       });
 
-      container.appendChild(clonedElement);
-      document.body.appendChild(container);
+      printContainer.appendChild(clonedElement);
+      overlay.appendChild(printContainer);
+      document.body.appendChild(overlay);
+
+      // Wait 250ms for browser styling and layout pass
+      await new Promise((resolve) => setTimeout(resolve, 250));
 
       const opt = {
         margin: [15, 15, 15, 15],
@@ -195,12 +202,14 @@ export default function MarkdownReader() {
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
 
-      await window.html2pdf().set(opt).from(container).save();
-      document.body.removeChild(container);
+      await window.html2pdf().set(opt).from(clonedElement).save();
     } catch (err) {
       console.error('Error generating PDF:', err);
       alert('Failed to generate PDF document.');
     } finally {
+      if (overlay && document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
       setGeneratingPdf(false);
     }
   };
