@@ -152,7 +152,13 @@ export default function MarkdownReader() {
     setGeneratingPdf(true);
 
     let overlay = null;
+    const originalScrollX = window.scrollX;
+    const originalScrollY = window.scrollY;
+
     try {
+      // Scroll to top-left to avoid html2canvas offset bugs
+      window.scrollTo(0, 0);
+
       const originalElement = readerRef.current;
       const clonedElement = originalElement.cloneNode(true);
 
@@ -165,7 +171,7 @@ export default function MarkdownReader() {
       loader.innerHTML = '<span class="spinner"></span><p>Generating PDF... Please wait.</p>';
       overlay.appendChild(loader);
 
-      // Hidden but layout-active container
+      // Hidden but layout-active container styled for A4 printable width (180mm = ~680px)
       const printContainer = document.createElement('div');
       printContainer.className = 'pdf-print-container';
       printContainer.setAttribute('data-theme', 'light');
@@ -174,9 +180,9 @@ export default function MarkdownReader() {
       Object.assign(clonedElement.style, {
         background: '#ffffff',
         color: '#0f172a',
-        padding: '30px',
-        width: '780px',
-        margin: '0 auto',
+        padding: '0', // No internal padding, allowing jsPDF margin to define clean spacing
+        margin: '0',
+        width: '680px',
         boxSizing: 'border-box'
       });
 
@@ -210,6 +216,8 @@ export default function MarkdownReader() {
       if (overlay && document.body.contains(overlay)) {
         document.body.removeChild(overlay);
       }
+      // Restore original scroll positions
+      window.scrollTo(originalScrollX, originalScrollY);
       setGeneratingPdf(false);
     }
   };

@@ -411,12 +411,13 @@ mark {
 /* Print container layout and scoping */
 .pdf-print-container {
   position: absolute;
-  top: 100vh;
-  left: 100vw;
-  width: 780px;
+  top: 0;
+  left: 0;
+  width: 680px;
   background: #ffffff !important;
   z-index: -1;
   box-sizing: border-box;
+  padding: 0;
 }
 
 /* Force light mode styles on the print container specifically */
