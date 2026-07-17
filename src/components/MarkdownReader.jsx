@@ -30,11 +30,12 @@ const CDN = {
   katex:     'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js',
   katexCss:  'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css',
   katexExt:  'https://cdn.jsdelivr.net/npm/marked-katex-extension@5.1.7/lib/index.umd.js',
+  html2pdf:  'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
 };
 
 /* ------------------------------------------------------------------
    Component
-------------------------------------------------------------------- */
+   ------------------------------------------------------------------- */
 export default function MarkdownReader() {
   const [view, setView] = useState('input'); // 'input' | 'reader'
   const [mdText, setMdText] = useState('');
@@ -43,6 +44,7 @@ export default function MarkdownReader() {
   const [readTime, setReadTime] = useState(0);
   const [ready, setReady] = useState(false);
   const [fullWidth, setFullWidth] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const readerRef = useRef(null);
   const progressRef = useRef(null);
@@ -59,6 +61,7 @@ export default function MarkdownReader() {
       await loadScript(CDN.markedHL);
       await loadScript(CDN.katex);
       await loadScript(CDN.katexExt);
+      await loadScript(CDN.html2pdf);
 
       const { markedHighlight } = window.markedHighlight;
       window.marked.use(
@@ -141,6 +144,64 @@ export default function MarkdownReader() {
       }
     } catch (err) {
       if (err.name !== 'AbortError') alert('Failed to save file.');
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!readerRef.current || generatingPdf) return;
+    setGeneratingPdf(true);
+
+    try {
+      const originalElement = readerRef.current;
+      const clonedElement = originalElement.cloneNode(true);
+
+      const container = document.createElement('div');
+      container.setAttribute('data-theme', 'light');
+      
+      Object.assign(container.style, {
+        background: '#ffffff',
+        color: '#0f172a',
+        padding: '20px',
+        width: '780px',
+        position: 'absolute',
+        left: '-9999px',
+        top: '0',
+        boxSizing: 'border-box'
+      });
+
+      clonedElement.classList.add('markdown-body', 'md-pdf-print');
+      Object.assign(clonedElement.style, {
+        background: 'transparent',
+        padding: '0',
+        margin: '0',
+        width: '100%'
+      });
+
+      container.appendChild(clonedElement);
+      document.body.appendChild(container);
+
+      const opt = {
+        margin: [15, 15, 15, 15],
+        filename: 'document.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true, 
+          logging: false,
+          scrollY: 0,
+          scrollX: 0
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      await window.html2pdf().set(opt).from(container).save();
+      document.body.removeChild(container);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('Failed to generate PDF document.');
+    } finally {
+      setGeneratingPdf(false);
     }
   };
 
@@ -241,13 +302,26 @@ export default function MarkdownReader() {
                 </svg>
                 Save
               </button>
-              <button className="btn btn-ghost" onClick={() => window.print()} title="Export as PDF">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="6 9 6 2 18 2 18 9" />
-                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                  <rect x="6" y="14" width="12" height="8" />
-                </svg>
-                PDF
+              <button 
+                className="btn btn-ghost" 
+                onClick={handleExportPdf} 
+                disabled={generatingPdf}
+                title="Export as PDF"
+              >
+                {generatingPdf ? (
+                  <>
+                    <span className="spinner" style={{ marginRight: '6px' }} /> Generating...
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="6 9 6 2 18 2 18 9" />
+                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                      <rect x="6" y="14" width="12" height="8" />
+                    </svg>
+                    PDF
+                  </>
+                )}
               </button>
             </div>
           </div>
