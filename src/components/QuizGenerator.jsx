@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { jsonrepair } from 'jsonrepair';
 import './QuizGenerator.css';
 
 /* ------------------------------------------------------------------
@@ -139,7 +140,8 @@ export default function QuizGenerator() {
     const raw = jsonInput.trim();
     if (!raw) { setError('Please paste some JSON data first.'); return null; }
     try {
-      const data = JSON.parse(raw);
+      const repairedRaw = jsonrepair(raw);
+      const data = JSON.parse(repairedRaw);
       if (!Array.isArray(data) || data.length === 0) { setError('Data must be a non-empty JSON array.'); return null; }
       for (let i = 0; i < data.length; i++) {
         const q = data[i];
@@ -149,7 +151,7 @@ export default function QuizGenerator() {
       }
       return data;
     } catch (_) {
-      setError('Invalid JSON — check for syntax errors.');
+      setError('Invalid JSON — even after attempting auto-repair. Please check for syntax errors.');
       return null;
     }
   };
