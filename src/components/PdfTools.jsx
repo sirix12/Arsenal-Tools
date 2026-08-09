@@ -1,28 +1,17 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
+import { PDFDocument } from 'pdf-lib';
+import * as pdfjsLib from 'pdfjs-dist';
+import mammoth from 'mammoth';
+import { marked } from 'marked';
+import { Document, Paragraph, TextRun, PageBreak, Packer } from 'docx';
+import JSZip from 'jszip';
 import './PdfTools.css';
 
 /* ------------------------------------------------------------------
-   Script loader
+   Configure pdf.js worker
 ------------------------------------------------------------------- */
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-}
-
-const CDN_SCRIPTS = [
-  'https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js',
-  'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
-  'https://unpkg.com/docx@8.2.3/build/index.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
-];
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 /* ------------------------------------------------------------------
    Tool definitions
@@ -52,7 +41,6 @@ const CATEGORIES = [
    Main component
 ------------------------------------------------------------------- */
 export default function PdfTools() {
-  const [ready, setReady] = useState(false);
   const [activeTool, setActiveTool] = useState(null);
   const [files, setFiles] = useState([]);
   const [thumbnails, setThumbnails] = useState([]);
@@ -63,18 +51,6 @@ export default function PdfTools() {
   const [dragOver, setDragOver] = useState(false);
 
   const fileInputRef = useRef(null);
-
-  /* Load CDN scripts once */
-  useEffect(() => {
-    (async () => {
-      for (const src of CDN_SCRIPTS) await loadScript(src);
-      if (window.pdfjsLib) {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      }
-      setReady(true);
-    })();
-  }, []);
 
   /* ----------------------------------------------------------------
      Helpers
@@ -130,7 +106,7 @@ export default function PdfTools() {
     try {
       setMsg('Rendering pages…', 'info');
       const buf = await file.arrayBuffer();
-      const pdf = await window.pdfjsLib.getDocument(buf).promise;
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
       const thumbs = [];
 
       for (let i = 1; i <= pdf.numPages; i++) {
@@ -165,7 +141,7 @@ export default function PdfTools() {
         case 'remove':      await removePages(); break;
         case 'split':       await split(); break;
         case 'organize':    await organize(); break;
-        case 'md-pdf':      printHtml(`<div style="padding:2cm;font-family:sans-serif">${window.marked.parse(mdText)}</div>`, 'markdown_doc'); break;
+        case 'md-pdf':      await generatePdfFromServer(`<div style="padding:2cm;font-family:sans-serif">${marked.parse(mdText)}</div>`, 'markdown_doc'); break;
         case 'word-pdf':    await wordToPdf(); break;
         case 'img-pdf':     await imgToPdf(); break;
         case 'pdf-word':    await pdfToWord(); break;
@@ -181,8 +157,8 @@ export default function PdfTools() {
 
   const compress = async () => {
     const buf = await files[0].arrayBuffer();
-    const src = await window.pdfjsLib.getDocument(buf).promise;
-    const out = await window.PDFLib.PDFDocument.create();
+    const src = await pdfjsLib.getDocument({ data: buf }).promise;
+    const out = await PDFDocument.create();
     for (let i = 1; i <= src.numPages; i++) {
       setMsg(`Compressing page ${i} of ${src.numPages}…`, 'info');
       const page = await src.getPage(i);
@@ -190,7 +166,11 @@ export default function PdfTools() {
       const canvas = document.createElement('canvas');
       canvas.width = vp.width; canvas.height = vp.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-      const jpg = await out.embedJpg(canvas.toDataURL('image/jpeg', 0.75));
+      // Convert canvas to JPEG bytes (embedJpg requires raw bytes, not a data URL)
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      const base64 = dataUrl.split(',')[1];
+      const jpgBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+      const jpg = await out.embedJpg(jpgBytes);
       const p = out.addPage([vp.width, vp.height]);
       p.drawImage(jpg, { x: 0, y: 0, width: vp.width, height: vp.height });
     }
@@ -199,10 +179,10 @@ export default function PdfTools() {
   };
 
   const merge = async () => {
-    const merged = await window.PDFLib.PDFDocument.create();
+    const merged = await PDFDocument.create();
     for (let i = 0; i < files.length; i++) {
       setMsg(`Merging ${i + 1} of ${files.length}…`, 'info');
-      const doc = await window.PDFLib.PDFDocument.load(await files[i].arrayBuffer());
+      const doc = await PDFDocument.load(await files[i].arrayBuffer());
       const pages = await merged.copyPages(doc, doc.getPageIndices());
       pages.forEach(p => merged.addPage(p));
     }
@@ -211,18 +191,18 @@ export default function PdfTools() {
 
   const removePages = async () => {
     if (selectedPages.size === 0) throw new Error('No pages selected.');
-    const doc = await window.PDFLib.PDFDocument.load(await files[0].arrayBuffer());
+    const doc = await PDFDocument.load(await files[0].arrayBuffer());
     Array.from(selectedPages).sort((a, b) => b - a).forEach(p => doc.removePage(p - 1));
     downloadBlob(new Blob([await doc.save()], { type: 'application/pdf' }), `removed_${files[0].name}`);
   };
 
   const split = async () => {
     if (selectedPages.size === 0) throw new Error('No pages selected.');
-    const src = await window.PDFLib.PDFDocument.load(await files[0].arrayBuffer());
+    const src = await PDFDocument.load(await files[0].arrayBuffer());
     const sel = Array.from(selectedPages).sort((a, b) => a - b);
-    const zip = new window.JSZip();
+    const zip = new JSZip();
     for (const pn of sel) {
-      const d = await window.PDFLib.PDFDocument.create();
+      const d = await PDFDocument.create();
       const [cp] = await d.copyPages(src, [pn - 1]);
       d.addPage(cp);
       zip.file(`page_${pn}.pdf`, await d.save());
@@ -231,41 +211,79 @@ export default function PdfTools() {
   };
 
   const organize = async () => {
-    const src = await window.PDFLib.PDFDocument.load(await files[0].arrayBuffer());
-    const out = await window.PDFLib.PDFDocument.create();
+    const src = await PDFDocument.load(await files[0].arrayBuffer());
+    const out = await PDFDocument.create();
     const order = thumbnails.map(t => t.pageNum - 1);
     const copied = await out.copyPages(src, order);
     copied.forEach(p => out.addPage(p));
     downloadBlob(new Blob([await out.save()], { type: 'application/pdf' }), `organized_${files[0].name}`);
   };
 
-  const printHtml = (html, filename) => {
-    const prev = document.title;
-    document.title = filename;
-    const win = window.open('', '_blank');
-    win.document.write(`<html><head><style>body{font-family:sans-serif;margin:2cm}</style></head><body>${html}</body></html>`);
-    win.document.close();
-    win.focus();
-    win.print();
-    win.close();
-    document.title = prev;
+  const generatePdfFromServer = async (html, filename) => {
+    try {
+      setMsg('Generating PDF on server...', 'info');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/api/pdf/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      downloadBlob(blob, filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
+    } catch (err) {
+      console.error(err);
+      throw new Error('Failed to generate PDF on server: ' + err.message);
+    }
   };
 
   const wordToPdf = async () => {
     const buf = await files[0].arrayBuffer();
-    const res = await window.mammoth.convertToHtml({ arrayBuffer: buf });
-    printHtml(`<div style="padding:2cm">${res.value}</div>`, files[0].name.replace('.docx', ''));
+    const res = await mammoth.convertToHtml({ arrayBuffer: buf });
+    await generatePdfFromServer(`<div style="padding:2cm">${res.value}</div>`, files[0].name.replace('.docx', ''));
+  };
+
+  /** Helper: convert any image file to PNG bytes via canvas (handles WebP, etc.) */
+  const imageFileToPngBytes = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          canvas.toBlob(blob => {
+            if (!blob) { reject(new Error('Failed to convert image')); return; }
+            blob.arrayBuffer().then(resolve).catch(reject);
+          }, 'image/png');
+        };
+        img.onerror = () => reject(new Error(`Failed to load image: ${file.name}`));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+      reader.readAsDataURL(file);
+    });
   };
 
   const imgToPdf = async () => {
-    const doc = await window.PDFLib.PDFDocument.create();
+    const doc = await PDFDocument.create();
     for (const file of files) {
       const buf = await file.arrayBuffer();
       let img;
       if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
         img = await doc.embedJpg(buf);
-      } else {
+      } else if (file.type === 'image/png') {
         img = await doc.embedPng(buf);
+      } else {
+        // WebP and other formats: re-encode to PNG via canvas
+        const pngBuf = await imageFileToPngBytes(file);
+        img = await doc.embedPng(pngBuf);
       }
       const p = doc.addPage([img.width, img.height]);
       p.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
@@ -274,7 +292,7 @@ export default function PdfTools() {
   };
 
   const pdfToWord = async () => {
-    const pdf = await window.pdfjsLib.getDocument(await files[0].arrayBuffer()).promise;
+    const pdf = await pdfjsLib.getDocument({ data: await files[0].arrayBuffer() }).promise;
     const paragraphs = [];
     for (let i = 1; i <= pdf.numPages; i++) {
       setMsg(`Extracting page ${i}…`, 'info');
@@ -288,17 +306,17 @@ export default function PdfTools() {
         lastY = item.transform[5];
       });
       text.split('\n').filter(l => l.trim()).forEach(line => {
-        paragraphs.push(new window.docx.Paragraph({ children: [new window.docx.TextRun(line)] }));
+        paragraphs.push(new Paragraph({ children: [new TextRun(line)] }));
       });
-      if (i < pdf.numPages) paragraphs.push(new window.docx.Paragraph({ children: [new window.docx.PageBreak()] }));
+      if (i < pdf.numPages) paragraphs.push(new Paragraph({ children: [new PageBreak()] }));
     }
-    const d = new window.docx.Document({ sections: [{ children: paragraphs }] });
-    downloadBlob(await window.docx.Packer.toBlob(d), files[0].name.replace('.pdf', '') + '.docx');
+    const d = new Document({ sections: [{ children: paragraphs }] });
+    downloadBlob(await Packer.toBlob(d), files[0].name.replace('.pdf', '') + '.docx');
   };
 
   const pdfToImages = async () => {
-    const pdf = await window.pdfjsLib.getDocument(await files[0].arrayBuffer()).promise;
-    const zip = new window.JSZip();
+    const pdf = await pdfjsLib.getDocument({ data: await files[0].arrayBuffer() }).promise;
+    const zip = new JSZip();
     for (let i = 1; i <= pdf.numPages; i++) {
       setMsg(`Rendering page ${i}…`, 'info');
       const page = await pdf.getPage(i);
@@ -394,7 +412,7 @@ export default function PdfTools() {
             />
             <div
               className="pdf-md-preview glass markdown-preview"
-              dangerouslySetInnerHTML={{ __html: ready && window.marked ? window.marked.parse(mdText) : mdText }}
+              dangerouslySetInnerHTML={{ __html: marked.parse(mdText) }}
             />
           </div>
           <button className="btn btn-primary pdf-action-btn" onClick={execute} disabled={loading}>
@@ -493,7 +511,7 @@ export default function PdfTools() {
 
           {/* Action button */}
           {(files.length > 0 || thumbnails.length > 0) && (
-            <button className="btn btn-primary pdf-action-btn" onClick={execute} disabled={loading || !ready}>
+            <button className="btn btn-primary pdf-action-btn" onClick={execute} disabled={loading}>
               {loading ? <><span className="spinner" /> Processing…</> : activeTool.title}
             </button>
           )}

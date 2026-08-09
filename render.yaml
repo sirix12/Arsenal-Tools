@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: arsenal-pdf-server
+    env: docker
+    dockerContext: ./server
+    dockerfilePath: ./server/Dockerfile
+    plan: free
+    region: ohio
+    healthCheckPath: /health
