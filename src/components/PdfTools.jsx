@@ -222,7 +222,7 @@ export default function PdfTools() {
   const generatePdfFromServer = async (html, filename) => {
     try {
       setMsg('Generating PDF on server...', 'info');
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://arsenal-pdf-server.azurewebsites.net';
       const response = await fetch(`${apiUrl}/api/pdf/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

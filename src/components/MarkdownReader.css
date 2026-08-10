@@ -36,6 +36,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.85rem 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .md-input-title {
@@ -45,6 +47,27 @@
   font-weight: 600;
   color: var(--text-main);
   font-size: 1rem;
+}
+
+.md-input-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.editing-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--primary);
+  background: var(--primary-dim);
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+
+.cloud-save-btn svg {
+  flex-shrink: 0;
 }
 
 .md-input-hint {
@@ -116,6 +139,7 @@
   position: sticky;
   top: calc(var(--navbar-h) + 4px);
   z-index: 50;
+  flex-wrap: wrap;
 }
 
 .reader-stats {
@@ -131,6 +155,7 @@
   display: flex;
   gap: 0.4rem;
   margin-left: auto;
+  flex-wrap: wrap;
 }
 
 /* ---------- Markdown body — scoped tokens (dark defaults) ---------- */
@@ -429,4 +454,477 @@ mark {
   --text-muted:  #475569;
   --text-subtle: #94a3b8;
   --glass-border: rgba(0, 0, 0, 0.08);
+}
+
+
+/* ============================================================
+   LIBRARY VIEW
+   ============================================================ */
+.md-library-view {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 2rem 4rem;
+  min-height: calc(100vh - var(--navbar-h));
+}
+
+.library-header {
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.library-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.library-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.doc-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--primary);
+  border-radius: 999px;
+  padding: 0 0.45rem;
+}
+
+.library-search-wrap {
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-subtle);
+  pointer-events: none;
+}
+
+.library-search {
+  width: 100%;
+  padding: 0.7rem 1rem 0.7rem 2.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.library-search:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-dim);
+}
+
+.library-search::placeholder {
+  color: var(--text-subtle);
+}
+
+/* ---------- Document grid ---------- */
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+/* ---------- Document card ---------- */
+.doc-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+  overflow: hidden;
+}
+
+.doc-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--shadow-lg), 0 0 20px var(--primary-dim);
+}
+
+.doc-card-body {
+  padding: 1.25rem 1.25rem 0.75rem;
+  cursor: pointer;
+  flex: 1;
+}
+
+.doc-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.doc-card-preview {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  margin-bottom: 0.75rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 3.8em;
+}
+
+.doc-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-subtle);
+  padding-bottom: 0.25rem;
+}
+
+.doc-card-sep {
+  opacity: 0.4;
+}
+
+.doc-card-actions {
+  display: flex;
+  border-top: 1px solid var(--glass-border);
+  padding: 0.5rem 0.75rem;
+  gap: 0.4rem;
+}
+
+.doc-open-btn,
+.doc-delete-btn {
+  font-size: 0.78rem !important;
+  padding: 0.35rem 0.85rem !important;
+  flex: 1;
+}
+
+.doc-delete-btn {
+  color: var(--error) !important;
+}
+
+.doc-delete-btn:hover {
+  background: var(--error-bg) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* ---------- Empty state ---------- */
+.library-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 5rem 2rem;
+  gap: 1rem;
+  min-height: 40vh;
+}
+
+.empty-icon {
+  color: var(--text-subtle);
+  opacity: 0.4;
+  margin-bottom: 0.5rem;
+}
+
+.library-empty h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.library-empty p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  max-width: 360px;
+}
+
+/* ---------- Skeleton loading ---------- */
+.skeleton-card {
+  min-height: 180px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.skeleton-line {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface) 25%,
+    var(--bg-surface-hover) 50%,
+    var(--bg-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-title {
+  width: 70%;
+  height: 22px;
+}
+
+.skeleton-preview {
+  width: 100%;
+  height: 48px;
+}
+
+.skeleton-meta {
+  width: 45%;
+  height: 14px;
+  margin-top: auto;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+
+/* ============================================================
+   TOAST NOTIFICATION
+   ============================================================ */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  z-index: 99999;
+  animation: toast-in 0.35s ease-out;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.toast-success {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--success);
+}
+
+.toast-error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--error);
+}
+
+.toast-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.toast-message {
+  white-space: nowrap;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* ============================================================
+   CONFIRMATION DIALOG
+   ============================================================ */
+.confirm-overlay,
+.save-choice-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 99998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: overlay-in 0.2s ease-out;
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirm-dialog {
+  max-width: 420px;
+  width: 90%;
+  padding: 2rem;
+  text-align: center;
+  animation: dialog-in 0.3s ease-out;
+}
+
+.confirm-icon {
+  color: var(--error);
+  margin-bottom: 1rem;
+}
+
+.confirm-dialog h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.75rem;
+}
+
+.confirm-dialog p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.btn-danger {
+  background: var(--error);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1.4rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+
+/* ============================================================
+   SAVE CHOICE POPUP
+   ============================================================ */
+.save-choice-popup {
+  max-width: 380px;
+  width: 90%;
+  padding: 1.75rem 2rem;
+  text-align: center;
+  animation: dialog-in 0.3s ease-out;
+}
+
+.save-choice-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 1.25rem;
+}
+
+.save-choice-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.save-choice-actions .btn {
+  flex: 1;
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 640px) {
+  .md-input-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .md-input-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .library-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .library-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .reader-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .reader-stats {
+    justify-content: flex-start;
+  }
+
+  .reader-actions {
+    margin-left: 0;
+  }
+
+  .toast {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+  }
+
+  .toast-message {
+    white-space: normal;
+  }
+
+  .save-choice-actions {
+    flex-direction: column;
+  }
+
+  .confirm-actions {
+    flex-direction: column;
+  }
 }
