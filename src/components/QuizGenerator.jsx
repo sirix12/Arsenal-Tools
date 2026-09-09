@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { jsonrepair } from 'jsonrepair';
 import './QuizGenerator.css';
 
@@ -35,6 +35,8 @@ Each object must have:
 - "explanation": A brief explanation of why the answer is correct.`;
 
 const STORAGE_KEY = 'arsenal_quiz_state';
+const API_URL = import.meta.env.VITE_API_URL || 'https://arsenal-pdf-server.azurewebsites.net';
+const QUIZ_API_URL = import.meta.env.VITE_QUIZ_API_URL || API_URL;
 
 /* ------------------------------------------------------------------
    Helpers
@@ -91,7 +93,9 @@ function makeCodeBlock(code, lang) {
 export default function QuizGenerator() {
   const [view, setView] = useState('setup');   // 'setup' | 'quiz' | 'result'
   const [jsonInput, setJsonInput] = useState('');
+  const [quizSource, setQuizSource] = useState('');
   const [error, setError] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
   const [savedState, setSavedState] = useState(null);
 
@@ -129,7 +133,7 @@ export default function QuizGenerator() {
         const s = JSON.parse(raw);
         if (s.questions?.length && s.currentIndex < s.questions.length) setSavedState(s);
       }
-    } catch (_) {}
+    } catch {}
   }, []);
 
   /* ----------------------------------------------------------------
@@ -145,12 +149,12 @@ export default function QuizGenerator() {
       if (!Array.isArray(data) || data.length === 0) { setError('Data must be a non-empty JSON array.'); return null; }
       for (let i = 0; i < data.length; i++) {
         const q = data[i];
-        if (!q.question || !Array.isArray(q.options) || q.options.length < 2 || !q.correctAnswer || !q.explanation) {
+        if (!q.question || !Array.isArray(q.options) || q.options.length < 2 || !q.correctAnswer || !q.explanation || !q.options.includes(q.correctAnswer)) {
           setError(`Item ${i} is missing required fields.`); return null;
         }
       }
       return data;
-    } catch (_) {
+    } catch {
       setError('Invalid JSON — even after attempting auto-repair. Please check for syntax errors.');
       return null;
     }
@@ -164,6 +168,70 @@ export default function QuizGenerator() {
     setQuestions(qs); setCurrentIndex(0); setScore(0);
     setIsAnswered(false); setSelectedOpt(null); setShowExplanation(false);
     setView('quiz');
+  };
+
+  const startStreamingQuiz = async () => {
+    const source = quizSource.trim();
+    if (!source) {
+      setError('Paste the quiz conversation you want to convert first.');
+      return;
+    }
+
+    setError('');
+    setQuestions([]); setCurrentIndex(0); setScore(0);
+    setIsAnswered(false); setSelectedOpt(null); setShowExplanation(false);
+    setIsStreaming(true);
+    localStorage.removeItem(STORAGE_KEY);
+
+    try {
+      const response = await fetch(`${QUIZ_API_URL}/api/quiz/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source }),
+      });
+      if (!response.ok || !response.body) {
+        const data = await response.json();
+        throw new Error(data.error || 'Quiz generation failed.');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let started = false;
+      let receivedQuestion = false;
+
+      const handleEvent = (event) => {
+        if (event.type === 'question') {
+          receivedQuestion = true;
+          setQuestions(current => [...current, event.question]);
+          if (!started) {
+            started = true;
+            setView('quiz');
+          }
+        } else if (event.type === 'error') {
+          throw new Error(event.error || 'Quiz generation failed.');
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() ?? '';
+        for (const event of events) {
+          const data = event.split('\n').find(line => line.startsWith('data:'))?.slice(5).trim();
+          if (data) handleEvent(JSON.parse(data));
+        }
+      }
+
+      if (!receivedQuestion) throw new Error('No valid quiz questions were generated.');
+    } catch (err) {
+      setError(err.message || 'Quiz conversion failed.');
+      setView('setup');
+    } finally {
+      setIsStreaming(false);
+    }
   };
 
   const resume = () => {
@@ -199,6 +267,8 @@ export default function QuizGenerator() {
       setIsAnswered(false); setSelectedOpt(null); setShowExplanation(false);
       const state = { questions, currentIndex: ni, score };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } else if (isStreaming) {
+      setError('Generating remaining questions...');
     } else {
       localStorage.removeItem(STORAGE_KEY);
       setView('result');
@@ -214,7 +284,7 @@ export default function QuizGenerator() {
   };
 
   const newQuiz = () => {
-    setJsonInput(''); setSavedState(null); setError('');
+    setJsonInput(''); setQuizSource(''); setSavedState(null); setError(''); setIsStreaming(false);
     setView('setup');
   };
 
@@ -246,7 +316,7 @@ export default function QuizGenerator() {
       <div className="qz-setup">
         <div className="qz-hero">
           <h1 className="qz-h1">Quiz Generator</h1>
-          <p className="qz-sub">Paste AI-generated JSON to start an interactive quiz.</p>
+          <p className="qz-sub">Paste a quiz chat to convert it, or start directly from JSON.</p>
         </div>
 
         {/* AI Prompt */}
@@ -264,9 +334,25 @@ export default function QuizGenerator() {
           </div>
         </div>
 
+        {/* Quiz conversion */}
+        <div className="qz-panel glass">
+          <label className="qz-label">Quiz Chat or Plain Text</label>
+          <textarea
+            className="qz-textarea"
+            value={quizSource}
+            onChange={e => setQuizSource(e.target.value)}
+            placeholder="Paste the chat or text containing your quiz questions…"
+          />
+          <div className="qz-actions">
+            <button className="btn btn-primary" onClick={startStreamingQuiz} disabled={isStreaming}>
+              {isStreaming ? 'Generating questions…' : 'Start AI Quiz'}
+            </button>
+          </div>
+        </div>
+
         {/* JSON input */}
         <div className="qz-panel glass">
-          <label className="qz-label">JSON Quiz Data</label>
+          <label className="qz-label">JSON Quiz Data (Optional)</label>
           <textarea
             className="qz-textarea"
             value={jsonInput}
@@ -278,7 +364,7 @@ export default function QuizGenerator() {
             {savedState && (
               <button className="btn btn-ghost" onClick={resume}>Resume Saved Quiz</button>
             )}
-            <button className="btn btn-primary" onClick={startNew}>Start Quiz</button>
+            <button className="btn btn-primary" onClick={startNew}>Start JSON Quiz</button>
           </div>
         </div>
       </div>
@@ -296,6 +382,8 @@ export default function QuizGenerator() {
           <span className="qz-progress-label">Question {currentIndex + 1} of {questions.length}</span>
           <span className="qz-score-badge">Score: <strong>{score}</strong></span>
         </div>
+        {isStreaming && <p className="qz-sub">More questions are being generated in the background.</p>}
+        {error && <div className="qz-error">{error}</div>}
 
         {/* Question */}
         <div className="qz-panel glass qz-question-panel">

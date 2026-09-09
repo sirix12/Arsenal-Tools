@@ -1,5 +1,14 @@
 {
+  "functions": {
+    "api/quiz/stream.js": {
+      "maxDuration": 60
+    },
+    "api/docs.js": {
+      "maxDuration": 15
+    }
+  },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+    { "source": "/api/docs/:id", "destination": "/api/docs?id=:id" },
+    { "source": "/((?!api/).*)", "destination": "/" }
   ]
 }

@@ -110,13 +110,17 @@
   display: inline-block;
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* ---------- Reader view ---------- */
 .md-reader-view {
@@ -161,19 +165,19 @@
 /* ---------- Markdown body — scoped tokens (dark defaults) ---------- */
 .markdown-body {
   /* Dark mode defaults */
-  --md-h3:           #7eb8d4;
-  --md-h4:           #9db8c8;
-  --md-link:         #38bdf8;
-  --md-link-hover:   #7dd3fc;
-  --md-link-ul:      rgba(56, 189, 248, 0.3);
-  --md-link-ul-hov:  rgba(125, 211, 252, 0.6);
-  --md-code-bg:      rgba(251, 191, 36, 0.12);
-  --md-code-fg:      #fbbf24;
-  --md-code-border:  rgba(251, 191, 36, 0.22);
-  --md-bq-bg:        rgba(255, 255, 255, 0.045);
-  --md-bq-border:    #7eb8d4;
-  --md-pre-bg:       #0d1117;
-  --md-pre-fg:       #abb2bf;
+  --md-h3: #7eb8d4;
+  --md-h4: #9db8c8;
+  --md-link: #38bdf8;
+  --md-link-hover: #7dd3fc;
+  --md-link-ul: rgba(56, 189, 248, 0.3);
+  --md-link-ul-hov: rgba(125, 211, 252, 0.6);
+  --md-code-bg: rgba(251, 191, 36, 0.12);
+  --md-code-fg: #fbbf24;
+  --md-code-border: rgba(251, 191, 36, 0.22);
+  --md-bq-bg: rgba(255, 255, 255, 0.045);
+  --md-bq-border: #7eb8d4;
+  --md-pre-bg: #0d1117;
+  --md-pre-fg: #abb2bf;
 
   font-family: var(--font-sans);
   font-size: 1.125rem;
@@ -185,35 +189,41 @@
 /* ---- Light mode token overrides ---- */
 @media (prefers-color-scheme: light) {
   .markdown-body {
-    --md-h3:           #1e6091;   /* deep ocean blue */
-    --md-h4:           #2d6a8f;
-    --md-link:         #1558b0;   /* classic blue — excellent contrast on white */
-    --md-link-hover:   #0d3d7a;
-    --md-link-ul:      rgba(21, 88, 176, 0.35);
-    --md-link-ul-hov:  rgba(13, 61, 122, 0.5);
-    --md-code-bg:      rgba(180, 100, 0, 0.08);  /* warm amber tint, not glaring */
-    --md-code-fg:      #92400e;   /* dark amber-brown — high contrast */
-    --md-code-border:  rgba(146, 64, 14, 0.2);
-    --md-bq-bg:        rgba(30, 96, 145, 0.06);
-    --md-bq-border:    #1e6091;
-    --md-pre-bg:       #1e2430;   /* keep dark for syntax highlighting clarity */
-    --md-pre-fg:       #d4d8e1;
+    --md-h3: #1e6091;
+    /* deep ocean blue */
+    --md-h4: #2d6a8f;
+    --md-link: #1558b0;
+    /* classic blue — excellent contrast on white */
+    --md-link-hover: #0d3d7a;
+    --md-link-ul: rgba(21, 88, 176, 0.35);
+    --md-link-ul-hov: rgba(13, 61, 122, 0.5);
+    --md-code-bg: rgba(180, 100, 0, 0.08);
+    /* warm amber tint, not glaring */
+    --md-code-fg: #92400e;
+    /* dark amber-brown — high contrast */
+    --md-code-border: rgba(146, 64, 14, 0.2);
+    --md-bq-bg: rgba(30, 96, 145, 0.06);
+    --md-bq-border: #1e6091;
+    --md-pre-bg: #1e2430;
+    /* keep dark for syntax highlighting clarity */
+    --md-pre-fg: #d4d8e1;
   }
 }
+
 [data-theme="light"] .markdown-body {
-  --md-h3:           #1e6091;
-  --md-h4:           #2d6a8f;
-  --md-link:         #1558b0;
-  --md-link-hover:   #0d3d7a;
-  --md-link-ul:      rgba(21, 88, 176, 0.35);
-  --md-link-ul-hov:  rgba(13, 61, 122, 0.5);
-  --md-code-bg:      rgba(180, 100, 0, 0.08);
-  --md-code-fg:      #92400e;
-  --md-code-border:  rgba(146, 64, 14, 0.2);
-  --md-bq-bg:        rgba(30, 96, 145, 0.06);
-  --md-bq-border:    #1e6091;
-  --md-pre-bg:       #1e2430;
-  --md-pre-fg:       #d4d8e1;
+  --md-h3: #1e6091;
+  --md-h4: #2d6a8f;
+  --md-link: #1558b0;
+  --md-link-hover: #0d3d7a;
+  --md-link-ul: rgba(21, 88, 176, 0.35);
+  --md-link-ul-hov: rgba(13, 61, 122, 0.5);
+  --md-code-bg: rgba(180, 100, 0, 0.08);
+  --md-code-fg: #92400e;
+  --md-code-border: rgba(146, 64, 14, 0.2);
+  --md-bq-bg: rgba(30, 96, 145, 0.06);
+  --md-bq-border: #1e6091;
+  --md-pre-bg: #1e2430;
+  --md-pre-fg: #d4d8e1;
 }
 
 .markdown-body h1,
@@ -239,10 +249,19 @@
   padding-bottom: 0.3rem;
 }
 
-.markdown-body h3 { font-size: 1.4rem; color: var(--md-h3); }
-.markdown-body h4 { font-size: 1.15rem; color: var(--md-h4); }
+.markdown-body h3 {
+  font-size: 1.4rem;
+  color: var(--md-h3);
+}
 
-.markdown-body p { margin-bottom: 1.5rem; }
+.markdown-body h4 {
+  font-size: 1.15rem;
+  color: var(--md-h4);
+}
+
+.markdown-body p {
+  margin-bottom: 1.5rem;
+}
 
 .markdown-body a {
   color: var(--md-link);
@@ -250,6 +269,7 @@
   border-bottom: 1px solid var(--md-link-ul);
   transition: color 0.15s, border-color 0.15s;
 }
+
 .markdown-body a:hover {
   color: var(--md-link-hover);
   border-bottom-color: var(--md-link-ul-hov);
@@ -261,7 +281,9 @@
   padding-left: 2rem;
 }
 
-.markdown-body li { margin-bottom: 0.5rem; }
+.markdown-body li {
+  margin-bottom: 0.5rem;
+}
 
 .markdown-body blockquote {
   margin: 2rem 0;
@@ -332,6 +354,31 @@
   margin: 2rem 0;
 }
 
+/* SVG and diagram styling */
+.markdown-body svg {
+  max-width: 100%;
+  height: auto !important;
+  display: block;
+  margin: 1.5rem auto;
+  border-radius: var(--radius-sm);
+  overflow: visible;
+}
+
+/* Ensure unstyled text in SVG diagrams is readable against light backgrounds */
+.markdown-body svg text:not([fill]) {
+  fill: #1e293b;
+}
+
+/* Container wrapper for embedded diagrams */
+.markdown-body div:has(> svg) {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
 .katex-display {
   overflow-x: auto;
   padding: 1rem 0;
@@ -347,15 +394,27 @@ mark {
 
 /* Print */
 @media print {
+
   .md-progress-container,
-  .reader-toolbar { display: none !important; }
-  .md-reader-view { max-width: 100% !important; padding: 0 !important; }
-  body { background: white !important; color: black !important; }
+  .reader-toolbar {
+    display: none !important;
+  }
+
+  .md-reader-view {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
 }
 
 /* PDF Generation specific styling */
 .md-pdf-print {
-  color: #0f172a !important; /* Force highly readable text color */
+  color: #0f172a !important;
+  /* Force highly readable text color */
 }
 
 /* Page breaks for PDF export */
@@ -400,7 +459,8 @@ mark {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(15, 23, 42, 0.85); /* Semi-transparent backdrop */
+  background: rgba(15, 23, 42, 0.85);
+  /* Semi-transparent backdrop */
   backdrop-filter: blur(4px);
   z-index: 999999;
   display: flex;
@@ -447,11 +507,11 @@ mark {
 
 /* Force light mode styles on the print container specifically */
 .pdf-print-container[data-theme="light"] {
-  --bg-darkest:  #ffffff;
-  --bg-dark:     #ffffff;
-  --bg-surface:  #ffffff;
-  --text-main:   #0f172a;
-  --text-muted:  #475569;
+  --bg-darkest: #ffffff;
+  --bg-dark: #ffffff;
+  --bg-surface: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #475569;
   --text-subtle: #94a3b8;
   --glass-border: rgba(0, 0, 0, 0.08);
 }
@@ -670,12 +730,10 @@ mark {
 
 .skeleton-line {
   border-radius: var(--radius-sm);
-  background: linear-gradient(
-    90deg,
-    var(--bg-surface) 25%,
-    var(--bg-surface-hover) 50%,
-    var(--bg-surface) 75%
-  );
+  background: linear-gradient(90deg,
+      var(--bg-surface) 25%,
+      var(--bg-surface-hover) 50%,
+      var(--bg-surface) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
@@ -697,8 +755,13 @@ mark {
 }
 
 @keyframes skeleton-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 
@@ -750,6 +813,7 @@ mark {
     opacity: 0;
     transform: translateY(16px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -775,8 +839,13 @@ mark {
 }
 
 @keyframes overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .confirm-dialog {
@@ -837,6 +906,7 @@ mark {
     opacity: 0;
     transform: scale(0.92) translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);

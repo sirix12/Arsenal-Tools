@@ -23,6 +23,7 @@ A client-side utility suite for common PDF manipulation tasks.
 ### 3. 🧠 Quiz Generator
 An interactive learning and testing platform.
 - **JSON Input:** Import custom quizzes from AI-generated JSON question formats.
+- **Quiz Chat Conversion:** Uses your Azure OpenAI deployment to convert pasted question-and-answer chats into the quiz JSON format.
 - **Progress Tracking:** Tracks correct answers, scores, and saves completion history.
 - **Rich Content:** Support for explanations, syntax-highlighted code questions, and clean transitions.
 
@@ -92,3 +93,47 @@ To locally preview the production build:
 npm run preview
 ```
 
+### Saved-document storage
+
+The saved Markdown document API stores one JSON blob per document in Azure Blob
+Storage. The default container is `saved-docs`, and the server keeps the Azure
+credentials server-side; no storage secret is sent to the browser. The
+application-level payload limit is exactly 500 MiB (`500 * 1024 * 1024` bytes).
+
+Configure one of these Azure authentication modes for the server (the
+connection string takes precedence when both are present):
+
+```text
+AZURE_STORAGE_CONNECTION_STRING=<server-only secret>
+# or, for managed identity / DefaultAzureCredential:
+AZURE_STORAGE_ACCOUNT_URL=https://<account>.blob.core.windows.net
+AZURE_STORAGE_CONTAINER=saved-docs   # optional
+```
+
+For `AZURE_STORAGE_ACCOUNT_URL`, grant the deployed identity a suitable Blob
+Data role, such as **Storage Blob Data Contributor**, on the storage account or
+container. Do not commit secrets or put these variables in frontend `.env`
+files. If neither authentication mode is configured, document endpoints return
+HTTP 503.
+
+Azure does not provide a native 500 MiB container quota, so the API enforces
+this application-level cap.
+Capacity checks are serialized within one server process; multiple server
+instances can still race and should use an external coordination mechanism if
+strict cross-instance enforcement is required.
+
+### Quiz conversion
+
+Quiz chat conversion is handled by the server so the Azure OpenAI key is never
+exposed to the browser. Configure these server-only environment variables with
+the resource endpoint and deployment name from Azure AI Foundry:
+
+```text
+AZURE_OPENAI_ENDPOINT=https://<resource-name>.openai.azure.com
+AZURE_OPENAI_API_KEY=<server-only secret>
+AZURE_OPENAI_DEPLOYMENT=<your-gpt-5-nano-deployment-name>
+```
+
+The endpoint calls Azure OpenAI's v1 chat-completions API with a strict JSON
+schema and returns an array compatible with the existing quiz player. The
+frontend's `VITE_API_URL` must point to the server that has these variables.

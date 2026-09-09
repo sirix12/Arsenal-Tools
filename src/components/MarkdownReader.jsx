@@ -23,21 +23,61 @@ function loadLink(href) {
 }
 
 const CDN = {
-  marked:    'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
-  markedHL:  'https://cdn.jsdelivr.net/npm/marked-highlight/lib/index.umd.js',
-  hljs:      'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js',
-  hljsCss:   'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css',
-  katex:     'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js',
-  katexCss:  'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css',
-  katexExt:  'https://cdn.jsdelivr.net/npm/marked-katex-extension@5.1.7/lib/index.umd.js',
-  html2pdf:  'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
+  marked: 'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
+  markedHL: 'https://cdn.jsdelivr.net/npm/marked-highlight/lib/index.umd.js',
+  hljs: 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js',
+  hljsCss: 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css',
+  katex: 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js',
+  katexCss: 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css',
+  katexExt: 'https://cdn.jsdelivr.net/npm/marked-katex-extension@5.1.7/lib/index.umd.js',
+  html2pdf: 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
 };
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://arsenal-pdf-server.azurewebsites.net';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 /* ------------------------------------------------------------------
    Helpers
    ------------------------------------------------------------------- */
+const LOCAL_STORAGE_KEY = 'arsenal_saved_docs';
+
+function getLocalDocs() {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error('Error reading localStorage docs:', e);
+    return [];
+  }
+}
+
+function saveLocalDocs(docs) {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(docs));
+  } catch (e) {
+    console.error('Error saving localStorage docs:', e);
+  }
+}
+
+function getLocalDoc(id) {
+  const docs = getLocalDocs();
+  return docs.find(d => d.id === id);
+}
+
+function putLocalDoc(doc) {
+  const docs = getLocalDocs();
+  const filtered = docs.filter(d => d.id !== doc.id);
+  const updated = [doc, ...filtered];
+  saveLocalDocs(updated);
+  return updated;
+}
+
+function deleteLocalDoc(id) {
+  const docs = getLocalDocs();
+  const filtered = docs.filter(d => d.id !== id);
+  saveLocalDocs(filtered);
+  return filtered;
+}
+
 function extractTitle(md) {
   const match = md.match(/^#\s+(.+)$/m);
   if (match) return match[1].trim();
@@ -48,7 +88,7 @@ function extractTitle(md) {
 function stripMd(text) {
   return text
     .replace(/^#{1,6}\s+/gm, '')
-    .replace(/[*_`~\[\]()]/g, '')
+    .replace(/[*_`~[\]()]/g, '')
     .replace(/\n+/g, ' ')
     .trim();
 }
@@ -79,8 +119,18 @@ export default function MarkdownReader() {
   const [fullWidth, setFullWidth] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
-  // Cloud docs state
-  const [savedDocs, setSavedDocs] = useState([]);
+  // Cloud & local docs state (initialized immediately from local storage)
+  const [savedDocs, setSavedDocs] = useState(() => {
+    const local = getLocalDocs();
+    return local.map(d => ({
+      id: d.id,
+      title: d.title,
+      preview: (d.content || '').slice(0, 150),
+      word_count: (d.content || '').trim().split(/\s+/).filter(Boolean).length,
+      created_at: d.created_at || '',
+      updated_at: d.updated_at || '',
+    }));
+  });
   const [currentDocId, setCurrentDocId] = useState(null);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [savingDoc, setSavingDoc] = useState(false);
@@ -152,7 +202,7 @@ export default function MarkdownReader() {
   }, [view]);
 
   const calcStats = (text) => {
-    const clean = text.replace(/[#*`_\[\]()$]/g, '');
+    const clean = text.replace(/[#*`_[\]()$]/g, '');
     const count = clean.trim().split(/\s+/).filter(w => w.length > 0).length;
     setWordCount(count);
     setReadTime(Math.max(1, Math.ceil(count / 200)));
@@ -257,9 +307,9 @@ export default function MarkdownReader() {
         margin: [15, 15, 15, 15],
         filename: 'document.pdf',
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true, 
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
           logging: false,
           scrollY: 0,
           scrollX: 0
@@ -284,19 +334,62 @@ export default function MarkdownReader() {
 
   /* ----------------------------------------------------------------
      Cloud document operations
+     Document operations (Offline-first Local Storage + Cloud Sync)
   ---------------------------------------------------------------- */
-  const fetchDocs = useCallback(async () => {
-    setLoadingDocs(true);
+  const fetchDocs = useCallback(async (background = false) => {
+    if (!background) setLoadingDocs(true);
+
+    // 1. Immediately surface local storage documents
+    const local = getLocalDocs();
+    if (local.length > 0) {
+      setSavedDocs(local.map(d => ({
+        id: d.id,
+        title: d.title,
+        preview: (d.content || '').slice(0, 150),
+        word_count: (d.content || '').trim().split(/\s+/).filter(Boolean).length,
+        created_at: d.created_at || '',
+        updated_at: d.updated_at || '',
+      })));
+    }
+
+    // 2. Attempt cloud fetch with timeout
     try {
-      const res = await fetch(`${API_URL}/api/docs`);
-      if (!res.ok) throw new Error('Failed to fetch documents');
-      const data = await res.json();
-      setSavedDocs(data);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(`${API_URL}/api/docs`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const cloudDocs = await res.json();
+        // Merge cloud with local: cloud docs take precedence if present
+        const mergedMap = new Map();
+        for (const doc of local) {
+          mergedMap.set(doc.id, {
+            id: doc.id,
+            title: doc.title,
+            preview: (doc.content || '').slice(0, 150),
+            word_count: (doc.content || '').trim().split(/\s+/).filter(Boolean).length,
+            created_at: doc.created_at || '',
+            updated_at: doc.updated_at || '',
+          });
+        }
+        for (const doc of cloudDocs) {
+          mergedMap.set(doc.id, doc);
+        }
+        const merged = Array.from(mergedMap.values());
+        merged.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+        setSavedDocs(merged);
+      }
     } catch (err) {
       console.error('Error fetching docs:', err);
-      showToast('Failed to load documents', 'error');
+      if (!background) showToast('Failed to load documents', 'error');
+      console.warn('Cloud storage unreachable, running offline mode:', err.message);
+      // Only toast if user had no local docs and requested explicit load
+      if (local.length === 0 && !background) {
+        showToast('Running in local offline mode', 'info');
+      }
     } finally {
-      setLoadingDocs(false);
+      if (!background) setLoadingDocs(false);
     }
   }, [showToast]);
 
@@ -306,8 +399,37 @@ export default function MarkdownReader() {
     setSaveChoice(false);
 
     const title = extractTitle(mdText);
+    const now = new Date().toISOString();
+    const docId = (!asNew && currentDocId) ? currentDocId : (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
 
+    const existingLocal = getLocalDoc(docId);
+    const docObj = {
+      id: docId,
+      title,
+      content: mdText,
+      created_at: (!asNew && existingLocal) ? (existingLocal.created_at || now) : now,
+      updated_at: now,
+    };
+
+    // 1. Immediately persist locally so document is NEVER lost
+    putLocalDoc(docObj);
+    setCurrentDocId(docId);
+
+    const docSummary = {
+      id: docId,
+      title,
+      preview: mdText.slice(0, 150),
+      word_count: mdText.trim().split(/\s+/).filter(Boolean).length,
+      created_at: docObj.created_at,
+      updated_at: now,
+    };
+    setSavedDocs(prev => [docSummary, ...prev.filter(d => d.id !== docId)]);
+
+    // 2. Attempt cloud save with timeout
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
       let res;
       if (!asNew && currentDocId) {
         // Update existing
@@ -315,6 +437,7 @@ export default function MarkdownReader() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, content: mdText }),
+          signal: controller.signal,
         });
       } else {
         // Create new
@@ -322,16 +445,46 @@ export default function MarkdownReader() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, content: mdText }),
+          signal: controller.signal,
         });
       }
+      clearTimeout(timeoutId);
 
       if (!res.ok) throw new Error('Failed to save document');
       const saved = await res.json();
       setCurrentDocId(saved.id);
+
+      // Immediately update local cache so library view is instantly fresh
+      const docSummary = {
+        id: saved.id,
+        title: saved.title || title,
+        preview: (saved.content || mdText).slice(0, 150),
+        word_count: (saved.content || mdText).trim().split(/\s+/).filter(Boolean).length,
+        created_at: saved.created_at || new Date().toISOString(),
+        updated_at: saved.updated_at || new Date().toISOString(),
+      };
+      setSavedDocs(prev => {
+        const filtered = prev.filter(d => d.id !== saved.id);
+        return [docSummary, ...filtered];
+      });
+
       showToast(asNew || !currentDocId ? 'Document saved to cloud!' : 'Document updated!');
+      if (res.ok) {
+        const saved = await res.json();
+        if (saved.id && saved.id !== docId) {
+          deleteLocalDoc(docId);
+          putLocalDoc({ ...docObj, id: saved.id });
+          setCurrentDocId(saved.id);
+        }
+        showToast(asNew || !currentDocId ? 'Document saved!' : 'Document updated!');
+      } else {
+        showToast('Document saved locally');
+      }
     } catch (err) {
       console.error('Error saving doc:', err);
       showToast('Failed to save document', 'error');
+      console.warn('Cloud sync offline, saved locally:', err.message);
+      showToast('Document saved locally');
     } finally {
       setSavingDoc(false);
     }
@@ -348,39 +501,85 @@ export default function MarkdownReader() {
   }, [mdText, currentDocId, saveDocToCloud]);
 
   const loadDocFromCloud = useCallback(async (docId) => {
+    // 1. Check local storage first
+    const local = getLocalDoc(docId);
+    if (local && local.content) {
+      setMdText(local.content);
+      setCurrentDocId(local.id);
+
+      if (ready && local.content.trim()) {
+        const html = window.marked.parse(local.content);
+        setRenderedHtml(html);
+        calcStats(local.content);
+        setView('reader');
+        window.scrollTo(0, 0);
+      } else {
+        setView('input');
+      }
+      showToast(`Loaded "${local.title}"`);
+      return;
+    }
+
+    // 2. Fetch from cloud if not available locally
     try {
-      const res = await fetch(`${API_URL}/api/docs/${docId}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(`${API_URL}/api/docs/${docId}`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
       if (!res.ok) throw new Error('Failed to load document');
       const doc = await res.json();
+      putLocalDoc(doc); // Cache locally
       setMdText(doc.content);
       setCurrentDocId(doc.id);
-      setView('input');
+
+      // Render and go directly to reader view
+      if (ready && doc.content.trim()) {
+        const html = window.marked.parse(doc.content);
+        setRenderedHtml(html);
+        calcStats(doc.content);
+        setView('reader');
+        window.scrollTo(0, 0);
+      } else {
+        setView('input');
+      }
       showToast(`Loaded "${doc.title}"`);
     } catch (err) {
       console.error('Error loading doc:', err);
       showToast('Failed to load document', 'error');
     }
-  }, [showToast]);
+  }, [showToast, ready]);
 
   const deleteDocFromCloud = useCallback(async (docId) => {
     setDeleteConfirm(null);
+    deleteLocalDoc(docId);
+    setSavedDocs(prev => prev.filter(d => d.id !== docId));
+    if (currentDocId === docId) setCurrentDocId(null);
+    showToast('Document deleted');
+
     try {
       const res = await fetch(`${API_URL}/api/docs/${docId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
       setSavedDocs(prev => prev.filter(d => d.id !== docId));
       if (currentDocId === docId) setCurrentDocId(null);
       showToast('Document deleted');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      await fetch(`${API_URL}/api/docs/${docId}`, { method: 'DELETE', signal: controller.signal });
+      clearTimeout(timeoutId);
     } catch (err) {
       console.error('Error deleting doc:', err);
       showToast('Failed to delete document', 'error');
+      console.warn('Cloud delete offline (local copy deleted):', err.message);
     }
   }, [currentDocId, showToast]);
 
   const openLibrary = useCallback(() => {
     setView('library');
     setSearchQuery('');
-    fetchDocs();
-  }, [fetchDocs]);
+    // Use stale-while-revalidate: if documents are already in state, refresh in background without blanking UI
+    fetchDocs(savedDocs.length > 0);
+  }, [fetchDocs, savedDocs.length]);
 
   const filteredDocs = savedDocs.filter(d =>
     d.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -550,9 +749,9 @@ export default function MarkdownReader() {
                 </svg>
                 Save
               </button>
-              <button 
-                className="btn btn-ghost" 
-                onClick={handleExportPdf} 
+              <button
+                className="btn btn-ghost"
+                onClick={handleExportPdf}
                 disabled={generatingPdf}
                 title="Export as PDF"
               >
@@ -573,6 +772,15 @@ export default function MarkdownReader() {
               </button>
             </div>
           </div>
+
+          {/* Global SVG defs for diagrams */}
+          <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden="true">
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#333" />
+              </marker>
+            </defs>
+          </svg>
 
           {/* Rendered content */}
           <article className="md-content markdown-body" ref={readerRef} />

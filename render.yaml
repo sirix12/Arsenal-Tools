@@ -7,3 +7,10 @@ services:
     plan: free
     region: ohio
     healthCheckPath: /health
+    envVars:
+      - key: AZURE_STORAGE_CONNECTION_STRING
+        sync: false
+      - key: AZURE_STORAGE_ACCOUNT_URL
+        sync: false
+      - key: AZURE_STORAGE_CONTAINER
+        value: saved-docs
