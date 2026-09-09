@@ -184,6 +184,32 @@ export default function MarkdownReader() {
       window.marked.use(
         window.markedKatex({ throwOnError: false, output: 'html', nonStandard: true })
       );
+
+      let rawBlocks = [];
+      window.marked.use({
+        hooks: {
+          preprocess(markdown) {
+            rawBlocks = [];
+            if (!markdown) return markdown;
+            return markdown.replace(/<(svg|canvas|math|iframe)\b[^>]*>[\s\S]*?<\/\1>/gi, (match) => {
+              const id = rawBlocks.length;
+              rawBlocks.push(match);
+              return `<!--MARKDOWN_RAW_HTML_BLOCK_${id}-->`;
+            });
+          },
+          postprocess(html) {
+            if (!html || rawBlocks.length === 0) return html;
+            let result = html;
+            rawBlocks.forEach((content, id) => {
+              const token = `<!--MARKDOWN_RAW_HTML_BLOCK_${id}-->`;
+              result = result.replace(new RegExp(`<p>\\s*${token}\\s*<\\/p>`, 'g'), content);
+              result = result.replace(new RegExp(token, 'g'), content);
+            });
+            return result;
+          },
+        },
+      });
+
       setReady(true);
     })();
   }, []);
