@@ -141,7 +141,7 @@ export default function PdfTools() {
         case 'remove':      await removePages(); break;
         case 'split':       await split(); break;
         case 'organize':    await organize(); break;
-        case 'md-pdf':      await generatePdfFromServer(`<div style="padding:2cm;font-family:sans-serif">${marked.parse(mdText)}</div>`, 'markdown_doc'); break;
+        case 'md-pdf':      await generatePdfFromHtml(`<div style="padding:2cm;font-family:sans-serif">${marked.parse(mdText)}</div>`, 'markdown_doc'); break;
         case 'word-pdf':    await wordToPdf(); break;
         case 'img-pdf':     await imgToPdf(); break;
         case 'pdf-word':    await pdfToWord(); break;
@@ -219,32 +219,51 @@ export default function PdfTools() {
     downloadBlob(new Blob([await out.save()], { type: 'application/pdf' }), `organized_${files[0].name}`);
   };
 
-  const generatePdfFromServer = async (html, filename) => {
+  const loadHtml2Pdf = () => {
+    if (window.html2pdf) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  };
+
+  const generatePdfFromHtml = async (html, filename) => {
     try {
-      setMsg('Generating PDF on server...', 'info');
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://arsenal-pdf-server.azurewebsites.net';
-      const response = await fetch(`${apiUrl}/api/pdf/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html })
-      });
+      setMsg('Generating PDF in browser...', 'info');
+      await loadHtml2Pdf();
+      const container = document.createElement('div');
+      container.innerHTML = html;
+      container.style.position = 'fixed';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '800px';
+      container.style.background = '#ffffff';
+      container.style.color = '#000000';
+      document.body.appendChild(container);
 
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
-      }
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: filename.endsWith('.pdf') ? filename : `${filename}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      };
 
-      const blob = await response.blob();
-      downloadBlob(blob, filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
+      await window.html2pdf().set(opt).from(container).save();
+      document.body.removeChild(container);
     } catch (err) {
       console.error(err);
-      throw new Error('Failed to generate PDF on server: ' + err.message);
+      throw new Error('Failed to generate PDF: ' + err.message);
     }
   };
 
   const wordToPdf = async () => {
     const buf = await files[0].arrayBuffer();
     const res = await mammoth.convertToHtml({ arrayBuffer: buf });
-    await generatePdfFromServer(`<div style="padding:2cm">${res.value}</div>`, files[0].name.replace('.docx', ''));
+    await generatePdfFromHtml(`<div style="padding:2cm">${res.value}</div>`, files[0].name.replace('.docx', ''));
   };
 
   /** Helper: convert any image file to PNG bytes via canvas (handles WebP, etc.) */
@@ -335,7 +354,11 @@ export default function PdfTools() {
   const togglePage = (pageNum) => {
     setSelectedPages(prev => {
       const next = new Set(prev);
-      next.has(pageNum) ? next.delete(pageNum) : next.add(pageNum);
+      if (next.has(pageNum)) {
+        next.delete(pageNum);
+      } else {
+        next.add(pageNum);
+      }
       return next;
     });
   };

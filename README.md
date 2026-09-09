@@ -93,47 +93,19 @@ To locally preview the production build:
 npm run preview
 ```
 
-### Saved-document storage
+### Saved-Document Storage
 
-The saved Markdown document API stores one JSON blob per document in Azure Blob
-Storage. The default container is `saved-docs`, and the server keeps the Azure
-credentials server-side; no storage secret is sent to the browser. The
-application-level payload limit is exactly 500 MiB (`500 * 1024 * 1024` bytes).
+Saved Markdown documents are managed via a high-performance Vercel Serverless Function (`/api/docs`) backed by GitHub Gist storage with offline-first client caching (`localStorage`):
+- **Instant (0ms) Access**: Documents are cached in the browser for zero-latency loading.
+- **Automatic Cloud Sync**: Background synchronization to GitHub Gist ensures safe persistence across devices.
+- **Server-Side Credentials**: GitHub tokens are managed securely in Vercel environment variables (`GITHUB_TOKEN`, `GIST_ID`).
 
-Configure one of these Azure authentication modes for the server (the
-connection string takes precedence when both are present):
+### Quiz Streaming & Conversion
 
-```text
-AZURE_STORAGE_CONNECTION_STRING=<server-only secret>
-# or, for managed identity / DefaultAzureCredential:
-AZURE_STORAGE_ACCOUNT_URL=https://<account>.blob.core.windows.net
-AZURE_STORAGE_CONTAINER=saved-docs   # optional
-```
-
-For `AZURE_STORAGE_ACCOUNT_URL`, grant the deployed identity a suitable Blob
-Data role, such as **Storage Blob Data Contributor**, on the storage account or
-container. Do not commit secrets or put these variables in frontend `.env`
-files. If neither authentication mode is configured, document endpoints return
-HTTP 503.
-
-Azure does not provide a native 500 MiB container quota, so the API enforces
-this application-level cap.
-Capacity checks are serialized within one server process; multiple server
-instances can still race and should use an external coordination mechanism if
-strict cross-instance enforcement is required.
-
-### Quiz conversion
-
-Quiz chat conversion is handled by the server so the Azure OpenAI key is never
-exposed to the browser. Configure these server-only environment variables with
-the resource endpoint and deployment name from Azure AI Foundry:
+Quiz question generation and chat conversion run via Vercel Serverless streaming (`/api/quiz/stream`), delivering questions via Server-Sent Events (SSE) directly to the interactive quiz player. Configure the required AI credentials in your Vercel project environment variables:
 
 ```text
 AZURE_OPENAI_ENDPOINT=https://<resource-name>.openai.azure.com
 AZURE_OPENAI_API_KEY=<server-only secret>
-AZURE_OPENAI_DEPLOYMENT=<your-gpt-5-nano-deployment-name>
+AZURE_OPENAI_DEPLOYMENT=<deployment-name>
 ```
-
-The endpoint calls Azure OpenAI's v1 chat-completions API with a strict JSON
-schema and returns an array compatible with the existing quiz player. The
-frontend's `VITE_API_URL` must point to the server that has these variables.

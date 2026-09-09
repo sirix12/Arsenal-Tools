@@ -35,8 +35,7 @@ Each object must have:
 - "explanation": A brief explanation of why the answer is correct.`;
 
 const STORAGE_KEY = 'arsenal_quiz_state';
-const API_URL = import.meta.env.VITE_API_URL || 'https://arsenal-pdf-server.azurewebsites.net';
-const QUIZ_API_URL = import.meta.env.VITE_QUIZ_API_URL || API_URL;
+const QUIZ_API_URL = import.meta.env.VITE_QUIZ_API_URL || import.meta.env.VITE_API_URL || '';
 
 /* ------------------------------------------------------------------
    Helpers

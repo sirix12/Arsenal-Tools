@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-playwright
-pydantic
-python-multipart
-httpx
-azure-storage-blob
-azure-identity
