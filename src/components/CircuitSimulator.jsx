@@ -65,11 +65,170 @@ o 4 64 0 4099 20 0.05 1 -1`,
   },
 ];
 
+/**
+ * Auto-repairs CircuitJS netlists by detecting any component terminals (e.g. grounds, switches, branch wires)
+ * that intersect the interior of continuous wire segments.
+ * In interactive canvas drawing, CircuitJS auto-splits wires on collision, but text netlist importing
+ * does NOT auto-split them, causing "bad connection to ground" (red dots).
+ * This function automatically splits continuous wires at intermediate terminals and remaps scope indices.
+ */
+function autoRepairNetlist(text) {
+  if (!text || typeof text !== 'string') return text;
+  const lines = text.split('\n');
+  const parsed = [];
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#') || line.startsWith('$')) {
+      parsed.push({ type: 'meta', raw: rawLine });
+      continue;
+    }
+    const parts = line.split(/\s+/);
+    const tag = parts[0];
+    if (tag === 'o') {
+      parsed.push({
+        type: 'scope',
+        targetIndex: parseInt(parts[1], 10),
+        rest: parts.slice(2).join(' '),
+        raw: rawLine,
+      });
+    } else if (
+      parts.length >= 5 &&
+      !isNaN(Number(parts[1])) &&
+      !isNaN(Number(parts[2])) &&
+      !isNaN(Number(parts[3])) &&
+      !isNaN(Number(parts[4]))
+    ) {
+      parsed.push({
+        type: 'elem',
+        tag,
+        x1: Number(parts[1]),
+        y1: Number(parts[2]),
+        x2: Number(parts[3]),
+        y2: Number(parts[4]),
+        rest: parts.slice(5).join(' '),
+        raw: rawLine,
+      });
+    } else {
+      parsed.push({ type: 'other', raw: rawLine });
+    }
+  }
+
+  // Collect all terminal points (x, y)
+  const terminals = new Set();
+  for (const item of parsed) {
+    if (item.type === 'elem') {
+      terminals.add(`${item.x1},${item.y1}`);
+      if (item.tag !== 'g') {
+        terminals.add(`${item.x2},${item.y2}`);
+      }
+    }
+  }
+
+  // Check each wire for intermediate terminals
+  const newElements = [];
+  const indexMap = new Map();
+  let oldElemCount = 0;
+
+  for (const item of parsed) {
+    if (item.type !== 'elem') {
+      newElements.push(item);
+      continue;
+    }
+
+    const currentOldIdx = oldElemCount++;
+    indexMap.set(currentOldIdx, newElements.filter((e) => e.type === 'elem').length);
+
+    if (item.tag === 'w') {
+      const isHoriz = item.y1 === item.y2 && item.x1 !== item.x2;
+      const isVert = item.x1 === item.x2 && item.y1 !== item.y2;
+
+      if (isHoriz || isVert) {
+        const intermediatePts = [];
+        for (const ptStr of terminals) {
+          const [px, py] = ptStr.split(',').map(Number);
+          if (isHoriz && py === item.y1) {
+            const minX = Math.min(item.x1, item.x2);
+            const maxX = Math.max(item.x1, item.x2);
+            if (px > minX && px < maxX) {
+              intermediatePts.push(px);
+            }
+          } else if (isVert && px === item.x1) {
+            const minY = Math.min(item.y1, item.y2);
+            const maxY = Math.max(item.y1, item.y2);
+            if (py > minY && py < maxY) {
+              intermediatePts.push(py);
+            }
+          }
+        }
+
+        if (intermediatePts.length > 0) {
+          if (isHoriz) {
+            const asc = item.x2 > item.x1;
+            intermediatePts.sort((a, b) => (asc ? a - b : b - a));
+            let curX = item.x1;
+            for (const nextX of intermediatePts) {
+              newElements.push({
+                type: 'elem',
+                tag: 'w',
+                raw: `w ${curX} ${item.y1} ${nextX} ${item.y1} ${item.rest}`.trim(),
+              });
+              curX = nextX;
+            }
+            newElements.push({
+              type: 'elem',
+              tag: 'w',
+              raw: `w ${curX} ${item.y1} ${item.x2} ${item.y1} ${item.rest}`.trim(),
+            });
+            continue;
+          } else {
+            const asc = item.y2 > item.y1;
+            intermediatePts.sort((a, b) => (asc ? a - b : b - a));
+            let curY = item.y1;
+            for (const nextY of intermediatePts) {
+              newElements.push({
+                type: 'elem',
+                tag: 'w',
+                raw: `w ${item.x1} ${curY} ${item.x1} ${nextY} ${item.rest}`.trim(),
+              });
+              curY = nextY;
+            }
+            newElements.push({
+              type: 'elem',
+              tag: 'w',
+              raw: `w ${item.x1} ${curY} ${item.x1} ${item.y2} ${item.rest}`.trim(),
+            });
+            continue;
+          }
+        }
+      }
+    }
+
+    newElements.push(item);
+  }
+
+  // Remap scopes to matching element indices
+  const output = [];
+  for (const item of newElements) {
+    if (item.type === 'scope') {
+      const newTarget = indexMap.has(item.targetIndex)
+        ? indexMap.get(item.targetIndex)
+        : item.targetIndex;
+      output.push(`o ${newTarget} ${item.rest}`.trim());
+    } else {
+      output.push(item.raw);
+    }
+  }
+
+  return output.join('\n');
+}
+
 function buildUrlForPreset(preset) {
   if (preset.type === 'file') {
     return `https://www.falstad.com/circuit/circuitjs.html?startCircuit=${preset.file}`;
   }
-  const compressed = LZString.compressToEncodedURIComponent(preset.code);
+  const code = autoRepairNetlist(preset.code);
+  const compressed = LZString.compressToEncodedURIComponent(code);
   return `https://www.falstad.com/circuit/circuitjs.html?ctz=${compressed}`;
 }
 
@@ -94,10 +253,11 @@ export default function CircuitSimulator() {
     setIframeKey((k) => k + 1);
   };
 
-  // Handle Load from Code
+  // Handle Load from Code (with auto-repair for wire junctions and floating grounds)
   const handleLoadFromCode = () => {
     if (!customCode.trim()) return;
-    const compressed = LZString.compressToEncodedURIComponent(customCode.trim());
+    const repairedCode = autoRepairNetlist(customCode.trim());
+    const compressed = LZString.compressToEncodedURIComponent(repairedCode);
     setSimUrl(`https://www.falstad.com/circuit/circuitjs.html?ctz=${compressed}`);
     setSelectedPreset('custom');
     setShowCodeModal(false);
@@ -330,7 +490,7 @@ o 3 64 0 4099 20 0.05 1 -1`
 
             <div className="modal-actions">
               <span className="modal-hint">
-                Tip: You can also use <strong>File → Import From Text</strong> inside the simulator canvas anytime.
+                ⚡ <strong>Auto-Repair Active</strong>: Automatically splits continuous wire rails so copy-pasted grounds &amp; branches connect cleanly with 0 bad connections.
               </span>
               <div className="modal-btn-group">
                 <button
@@ -374,6 +534,7 @@ o 3 64 0 4099 20 0.05 1 -1`
               </p>
               <ul>
                 <li><strong>Branch off an existing wire</strong>: Right-click the wire and choose <strong>&quot;Split Wire&quot;</strong>, or draw a new wire directly to it to create a junction (<strong style={{ color: '#ffffff' }}>White Dot ⚪</strong>).</li>
+                <li><strong>Copy-Pasting Netlists</strong>: Use Arsenal&apos;s <strong>&quot;Add from Code&quot;</strong> button, which automatically splits continuous rails so copy-pasted grounds and branches connect with 0 bad connections!</li>
                 <li><strong>Snap to Nearest Grid</strong>: If terminals are misaligned, press <kbd>Ctrl+A</kbd> then click <strong>Edit → Align to Grid</strong>.</li>
                 <li><strong>Connecting Ground</strong>: Ground only connects at its single top terminal dot.</li>
               </ul>
