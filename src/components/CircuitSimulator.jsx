@@ -1,1078 +1,409 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { stepCircuit, parseNetlist, exportNetlist, ptDist } from './circuit/engine';
-import { PRESETS } from './circuit/presets';
+import LZString from 'lz-string';
 import './CircuitSimulator.css';
 
-const TOOLS = [
-  { id: 'select', label: 'Select / Move', icon: '👆' },
-  { id: 'w', label: 'Wire', icon: '⎯' },
-  { id: 'r', label: 'Resistor', icon: '⧛' },
-  { id: 'c', label: 'Capacitor', icon: '⫲' },
-  { id: 'l', label: 'Inductor', icon: '∿' },
-  { id: 'vac', label: 'AC Source', icon: '∿' },
-  { id: 'vdc', label: 'DC Source', icon: '⎓' },
-  { id: 'd', label: 'Diode', icon: '▷|' },
-  { id: 'z', label: 'Zener Diode', icon: '▷|' },
-  { id: 's', label: 'Switch', icon: '⏻' },
-  { id: 'g', label: 'Ground', icon: '⏚' },
+const STUDY_PRESETS = [
+  {
+    id: 'zener-clipper',
+    name: 'Zener Diode Voltage Clipper',
+    description: 'AC signal clipped by 5.1V Zener diode with dual input & output oscilloscopes',
+    type: 'code',
+    code: `$ 1 0.000005 10.20027730826997 50 5 43
+v 140 160 140 300 0 1 50 10 0 0 0.5
+w 140 160 260 160 0
+r 260 160 380 160 0 1000
+w 380 160 480 160 0
+z 480 300 480 160 0 5.1
+w 140 300 480 300 0
+g 310 300 310 340 0
+o 0 64 0 4099 20 0.05 0 -1
+o 4 64 0 4099 20 0.05 1 -1`,
+  },
+  {
+    id: 'diodeclip',
+    name: 'Waveform Clipper (Diode)',
+    description: 'Diode clipping circuit with bias voltage and output scope',
+    type: 'file',
+    file: 'diodeclip.txt',
+  },
+  {
+    id: 'zenerref',
+    name: 'Zener Voltage Reference',
+    description: 'DC voltage regulator maintaining steady breakdown reference',
+    type: 'file',
+    file: 'zenerref.txt',
+  },
+  {
+    id: 'fullrectf',
+    name: 'Full-Wave Bridge Rectifier & Filter',
+    description: '4-diode bridge with capacitor smoothing filter and load resistor',
+    type: 'file',
+    file: 'fullrectf.txt',
+  },
+  {
+    id: 'filt-lopass',
+    name: 'RC Low-Pass Filter',
+    description: 'Passive RC low-pass frequency filter with frequency response',
+    type: 'file',
+    file: 'filt-lopass.txt',
+  },
+  {
+    id: 'lrc',
+    name: 'LRC Resonant Circuit',
+    description: 'Underdamped RLC tank showing resonant frequency oscillations',
+    type: 'file',
+    file: 'lrc.txt',
+  },
+  {
+    id: '555square',
+    name: '555 Square Wave Generator',
+    description: 'Astable multivibrator oscillating with dual threshold/discharge scopes',
+    type: 'file',
+    file: '555square.txt',
+  },
 ];
+
+function buildUrlForPreset(preset) {
+  if (preset.type === 'file') {
+    return `https://www.falstad.com/circuit/circuitjs.html?startCircuit=${preset.file}`;
+  }
+  const compressed = LZString.compressToEncodedURIComponent(preset.code);
+  return `https://www.falstad.com/circuit/circuitjs.html?ctz=${compressed}`;
+}
 
 export default function CircuitSimulator() {
   const navigate = useNavigate();
+  const containerRef = useRef(null);
 
-  // Circuit elements and simulation state
-  const [elements, setElements] = useState(() => PRESETS[0].elements.map(el => ({ ...el, state: {} })));
-  const [activeTool, setActiveTool] = useState('select');
-  const [selectedElId, setSelectedElId] = useState('z1');
-  const [isRunning, setIsRunning] = useState(true);
-  const [simSpeed, setSimSpeed] = useState(1);
-  const [selectedPreset, setSelectedPreset] = useState('zener');
-
-  // Drawing state
-  const [drawingStart, setDrawingStart] = useState(null);
-  const [currentMouse, setCurrentMouse] = useState(null);
-  const [draggedElement, setDraggedElement] = useState(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-
-  // Modals & Panels
+  const [selectedPreset, setSelectedPreset] = useState(STUDY_PRESETS[0].id);
+  const [simUrl, setSimUrl] = useState(() => buildUrlForPreset(STUDY_PRESETS[0]));
   const [showCodeModal, setShowCodeModal] = useState(false);
-  const [customCode, setCustomCode] = useState('');
-  const [showScope, setShowScope] = useState(true);
-  const [copyStatus, setCopyStatus] = useState(false);
-  const [editModalEl, setEditModalEl] = useState(null);
+  const [customCode, setCustomCode] = useState(STUDY_PRESETS[0].code);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
 
-  // References
-  const canvasRef = useRef(null);
-  const scopeCanvasRef = useRef(null);
-  const simTimeRef = useRef(0);
-  const scopeDataRef = useRef([]); // history of { t, v, i }
-  const animFrameRef = useRef(null);
-  const renderCanvasRef = useRef(null);
-  const renderScopeRef = useRef(null);
-
-  // Snap to 20px grid
-  const snap = (val) => Math.round(val / 20) * 20;
-
-  // Initialize or load preset
-  const loadPreset = (presetId) => {
-    const preset = PRESETS.find(p => p.id === presetId);
-    if (!preset) return;
+  // Handle preset switch
+  const handleSelectPreset = (presetId) => {
     setSelectedPreset(presetId);
-    const newElements = preset.elements.map(el => ({
-      ...el,
-      p1: { ...el.p1 },
-      p2: el.p2 ? { ...el.p2 } : undefined,
-      state: {}
-    }));
-    setElements(newElements);
-    scopeDataRef.current = [];
-    simTimeRef.current = 0;
-    // Auto-select a dynamic/active element for scope
-    const probeTarget = newElements.find(e => ['z', 'c', 'd', 'r'].includes(e.type)) || newElements[0];
-    if (probeTarget) setSelectedElId(probeTarget.id);
+    const preset = STUDY_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    setSimUrl(buildUrlForPreset(preset));
+    setIframeKey((k) => k + 1);
   };
 
-  // Handle "Add from Code"
+  // Handle Load from Code
   const handleLoadFromCode = () => {
     if (!customCode.trim()) return;
-    try {
-      const parsed = parseNetlist(customCode);
-      if (parsed.length > 0) {
-        setElements(parsed);
-        setSelectedPreset('custom');
-        scopeDataRef.current = [];
-        simTimeRef.current = 0;
-        if (parsed[0]) setSelectedElId(parsed[0].id);
-        setShowCodeModal(false);
-      } else {
-        alert('No valid circuit components found in code.');
-      }
-    } catch (err) {
-      alert('Error parsing circuit code: ' + err.message);
-    }
+    const compressed = LZString.compressToEncodedURIComponent(customCode.trim());
+    setSimUrl(`https://www.falstad.com/circuit/circuitjs.html?ctz=${compressed}`);
+    setSelectedPreset('custom');
+    setShowCodeModal(false);
+    setIframeKey((k) => k + 1);
   };
 
-  // Export current circuit to clipboard
-  const handleExportCode = () => {
-    const code = exportNetlist(elements);
-    navigator.clipboard.writeText(code);
-    setCopyStatus(true);
-    setTimeout(() => setCopyStatus(false), 2000);
-  };
-
-  // Open "Add from Code" modal prefilled with current netlist or sample
-  const openCodeModal = () => {
-    setCustomCode(exportNetlist(elements));
-    setShowCodeModal(true);
-  };
-
-  // Simulation step loop
-  useEffect(() => {
-    const loop = () => {
-      if (isRunning && elements.length > 0) {
-        const subSteps = 8;
-        const dt = (0.00025 * simSpeed) / subSteps;
-
-        for (let step = 0; step < subSteps; step++) {
-          simTimeRef.current += dt;
-          stepCircuit(elements, simTimeRef.current, dt);
-        }
-
-        // Record scope history for currently selected element
-        const target = elements.find(e => e.id === selectedElId) || elements[0];
-        if (target && target.state) {
-          scopeDataRef.current.push({
-            t: simTimeRef.current,
-            v: target.state.v || (target.state.v1 - target.state.v2) || 0,
-            i: target.state.i || 0,
-          });
-          if (scopeDataRef.current.length > 250) {
-            scopeDataRef.current.shift();
-          }
-        }
-      }
-
-      renderCanvasRef.current?.();
-      renderScopeRef.current?.();
-      animFrameRef.current = requestAnimationFrame(loop);
-    };
-
-    animFrameRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animFrameRef.current);
-  }, [isRunning, simSpeed, elements, selectedElId]);
-
-  // Main Canvas Rendering
-  const renderCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-
-    // Background
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(0, 0, width, height);
-
-    // Subtle Grid lines
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 1;
-    const gridSize = 20;
-    for (let x = 0; x < width; x += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
-    }
-    for (let y = 0; y < height; y += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-    }
-
-    // Render Elements
-    elements.forEach((el) => {
-      const isSelected = el.id === selectedElId;
-      drawComponent(ctx, el, isSelected, simTimeRef.current);
-    });
-
-    // Draw active drawing preview
-    if (drawingStart && currentMouse && activeTool !== 'select') {
-      const p1 = drawingStart;
-      const p2 = { x: snap(currentMouse.x), y: snap(currentMouse.y) };
-      ctx.save();
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = '#06b6d4';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }, [elements, selectedElId, drawingStart, currentMouse, activeTool]);
-
-  // Keep render refs updated
-  useEffect(() => {
-    renderCanvasRef.current = renderCanvas;
-  }, [renderCanvas]);
-
-  // Component rendering routines
-  const drawComponent = (ctx, el, isSelected, time) => {
-    const { p1, p2, type, state } = el;
-    if (!p1) return;
-
-    ctx.save();
-
-    // Voltage color coding
-    const vAvg = state ? ((state.v1 || 0) + (state.v2 || 0)) / 2 : 0;
-    let voltageColor = '#94a3b8'; // neutral
-    if (vAvg > 0.5) voltageColor = '#22c55e'; // positive green
-    else if (vAvg < -0.5) voltageColor = '#ef4444'; // negative red
-
-    ctx.strokeStyle = isSelected ? '#38bdf8' : voltageColor;
-    ctx.lineWidth = isSelected ? 3.5 : 2.5;
-
-    // Draw component based on type
-    if (type === 'w') {
-      // Wire
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.stroke();
-    } else if (type === 'r') {
-      // Resistor (Zig-zag)
-      drawResistor(ctx, p1, p2, el.value);
-    } else if (type === 'c') {
-      // Capacitor (Parallel plates)
-      drawCapacitor(ctx, p1, p2, el.value);
-    } else if (type === 'l') {
-      // Inductor (Coils)
-      drawInductor(ctx, p1, p2, el.value);
-    } else if (type === 'vdc') {
-      // DC Source (Circle with +/-)
-      drawDCSource(ctx, p1, p2, el.value);
-    } else if (type === 'vac') {
-      // AC Source (Circle with sine)
-      drawACSource(ctx, p1, p2, el.value, el.freq);
-    } else if (type === 'd') {
-      // Standard Diode
-      drawDiode(ctx, p1, p2, false);
-    } else if (type === 'z') {
-      // Zener Diode
-      drawDiode(ctx, p1, p2, true, el.vz);
-    } else if (type === 'g') {
-      // Ground
-      drawGround(ctx, p1, p2 || { x: p1.x, y: p1.y + 20 });
-    } else if (type === 's') {
-      // Switch
-      drawSwitch(ctx, p1, p2, el.closed);
-    }
-
-    // Terminals dots
-    ctx.fillStyle = isSelected ? '#38bdf8' : '#e2e8f0';
-    ctx.beginPath();
-    ctx.arc(p1.x, p1.y, 3, 0, 2 * Math.PI);
-    ctx.fill();
-    if (p2) {
-      ctx.beginPath();
-      ctx.arc(p2.x, p2.y, 3, 0, 2 * Math.PI);
-      ctx.fill();
-    }
-
-    // Animated Current Dots
-    const current = state?.i || 0;
-    if (Math.abs(current) > 1e-5 && p2) {
-      drawCurrentFlow(ctx, p1, p2, current, time);
-    }
-
-    ctx.restore();
-  };
-
-  // Schematic drawing primitives
-  const drawResistor = (ctx, p1, p2, val) => {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const len = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
-
-    ctx.save();
-    ctx.translate(p1.x, p1.y);
-    ctx.rotate(angle);
-
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    const lead = Math.max(10, (len - 40) / 2);
-    ctx.lineTo(lead, 0);
-
-    // 6 peaks
-    const seg = 40 / 6;
-    for (let i = 0; i < 6; i++) {
-      const x = lead + (i + 0.5) * seg;
-      const y = (i % 2 === 0 ? -1 : 1) * 8;
-      ctx.lineTo(x, y);
-    }
-    ctx.lineTo(len - lead, 0);
-    ctx.lineTo(len, 0);
-    ctx.stroke();
-
-    // Value label
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '11px JetBrains Mono, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${val || 1000}Ω`, len / 2, -14);
-
-    ctx.restore();
-  };
-
-  const drawCapacitor = (ctx, p1, p2, val) => {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const len = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
-    const mid = len / 2;
-
-    ctx.save();
-    ctx.translate(p1.x, p1.y);
-    ctx.rotate(angle);
-
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(mid - 4, 0);
-    ctx.moveTo(mid + 4, 0);
-    ctx.lineTo(len, 0);
-    ctx.stroke();
-
-    // Plates
-    ctx.beginPath();
-    ctx.moveTo(mid - 4, -12);
-    ctx.lineTo(mid - 4, 12);
-    ctx.moveTo(mid + 4, -12);
-    ctx.lineTo(mid + 4, 12);
-    ctx.stroke();
-
-    // Label
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '11px JetBrains Mono, monospace';
-    ctx.textAlign = 'center';
-    const cVal = val >= 1e-6 ? `${(val * 1e6).toFixed(1)}µF` : `${(val * 1e9).toFixed(1)}nF`;
-    ctx.fillText(cVal, mid, -16);
-
-    ctx.restore();
-  };
-
-  const drawInductor = (ctx, p1, p2, val) => {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const len = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
-    const lead = (len - 40) / 2;
-
-    ctx.save();
-    ctx.translate(p1.x, p1.y);
-    ctx.rotate(angle);
-
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(lead, 0);
-
-    for (let i = 0; i < 4; i++) {
-      ctx.arc(lead + i * 10 + 5, 0, 5, Math.PI, 0, false);
-    }
-    ctx.lineTo(len, 0);
-    ctx.stroke();
-
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '11px JetBrains Mono, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${(val || 0.1) * 1000}mH`, len / 2, -14);
-
-    ctx.restore();
-  };
-
-  const drawDiode = (ctx, p1, p2, isZener = false, vz = 5.1) => {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const len = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
-    const mid = len / 2;
-
-    ctx.save();
-    ctx.translate(p1.x, p1.y);
-    ctx.rotate(angle);
-
-    // Leads
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(mid - 10, 0);
-    ctx.moveTo(mid + 10, 0);
-    ctx.lineTo(len, 0);
-    ctx.stroke();
-
-    // Triangle (pointing towards p2)
-    ctx.beginPath();
-    ctx.moveTo(mid - 10, -10);
-    ctx.lineTo(mid + 10, 0);
-    ctx.lineTo(mid - 10, 10);
-    ctx.closePath();
-    ctx.fillStyle = isZener ? '#0284c7' : '#334155';
-    ctx.fill();
-    ctx.stroke();
-
-    // Cathode bar
-    ctx.beginPath();
-    ctx.moveTo(mid + 10, -10);
-    ctx.lineTo(mid + 10, 10);
-    if (isZener) {
-      // Bent tabs for Zener
-      ctx.moveTo(mid + 10, -10);
-      ctx.lineTo(mid + 15, -10);
-      ctx.moveTo(mid + 10, 10);
-      ctx.lineTo(mid + 5, 10);
-    }
-    ctx.stroke();
-
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '11px JetBrains Mono, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(isZener ? `Zener ${vz}V` : 'Diode', mid, -14);
-
-    ctx.restore();
-  };
-
-  const drawDCSource = (ctx, p1, p2, val) => {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const len = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
-    const mid = len / 2;
-
-    ctx.save();
-    ctx.translate(p1.x, p1.y);
-    ctx.rotate(angle);
-
-    // Leads
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(mid - 14, 0);
-    ctx.moveTo(mid + 14, 0);
-    ctx.lineTo(len, 0);
-    ctx.stroke();
-
-    // Circle
-    ctx.beginPath();
-    ctx.arc(mid, 0, 14, 0, 2 * Math.PI);
-    ctx.stroke();
-
-    // Signs: + near p1, - near p2
-    ctx.font = '12px sans-serif';
-    ctx.fillStyle = '#cbd5e1';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('+', mid - 6, 0);
-    ctx.fillText('−', mid + 6, 0);
-
-    ctx.font = '11px JetBrains Mono, monospace';
-    ctx.fillText(`${val || 5}V`, mid, -20);
-
-    ctx.restore();
-  };
-
-  const drawACSource = (ctx, p1, p2, val, freq) => {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const len = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
-    const mid = len / 2;
-
-    ctx.save();
-    ctx.translate(p1.x, p1.y);
-    ctx.rotate(angle);
-
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(mid - 14, 0);
-    ctx.moveTo(mid + 14, 0);
-    ctx.lineTo(len, 0);
-    ctx.stroke();
-
-    // Circle
-    ctx.beginPath();
-    ctx.arc(mid, 0, 14, 0, 2 * Math.PI);
-    ctx.stroke();
-
-    // Sine wave inside
-    ctx.beginPath();
-    for (let x = -8; x <= 8; x++) {
-      const y = -Math.sin((x / 8) * Math.PI) * 5;
-      if (x === -8) ctx.moveTo(mid + x, y);
-      else ctx.lineTo(mid + x, y);
-    }
-    ctx.stroke();
-
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '11px JetBrains Mono, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${val || 10}V ~ ${freq || 50}Hz`, mid, -20);
-
-    ctx.restore();
-  };
-
-  const drawGround = (ctx, p1, p2) => {
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-    ctx.stroke();
-
-    // 3 parallel horizontal bars
-    const y = p2.y;
-    ctx.beginPath();
-    ctx.moveTo(p2.x - 12, y);
-    ctx.lineTo(p2.x + 12, y);
-    ctx.moveTo(p2.x - 7, y + 4);
-    ctx.lineTo(p2.x + 7, y + 4);
-    ctx.moveTo(p2.x - 3, y + 8);
-    ctx.lineTo(p2.x + 3, y + 8);
-    ctx.stroke();
-
-    ctx.restore();
-  };
-
-  const drawSwitch = (ctx, p1, p2, closed) => {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const len = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
-    const mid = len / 2;
-
-    ctx.save();
-    ctx.translate(p1.x, p1.y);
-    ctx.rotate(angle);
-
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(mid - 10, 0);
-    ctx.moveTo(mid + 10, 0);
-    ctx.lineTo(len, 0);
-    ctx.stroke();
-
-    // Contact dots
-    ctx.beginPath();
-    ctx.arc(mid - 10, 0, 2.5, 0, 2 * Math.PI);
-    ctx.arc(mid + 10, 0, 2.5, 0, 2 * Math.PI);
-    ctx.fill();
-
-    // Arm
-    ctx.beginPath();
-    ctx.moveTo(mid - 10, 0);
-    if (closed) {
-      ctx.lineTo(mid + 10, 0);
+  // Toggle Fullscreen
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => {});
     } else {
-      ctx.lineTo(mid + 8, -10); // Open lever
-    }
-    ctx.stroke();
-
-    ctx.fillStyle = closed ? '#22c55e' : '#f59e0b';
-    ctx.font = '10px JetBrains Mono, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(closed ? 'ON' : 'OFF', mid, -14);
-
-    ctx.restore();
-  };
-
-  // Draw animated flowing charge dots
-  const drawCurrentFlow = (ctx, p1, p2, current, time) => {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const len = Math.hypot(dx, dy);
-    if (len < 10) return;
-
-    const dotSpacing = 16;
-    const numDots = Math.floor(len / dotSpacing);
-    const speed = Math.sign(current) * Math.min(100, Math.abs(current) * 150);
-    const offset = ((time * speed) % dotSpacing + dotSpacing) % dotSpacing;
-
-    ctx.fillStyle = '#facc15'; // bright yellow current dots
-    for (let i = 0; i < numDots; i++) {
-      const d = offset + i * dotSpacing;
-      if (d > 0 && d < len) {
-        const x = p1.x + (dx * d) / len;
-        const y = p1.y + (dy * d) / len;
-        ctx.beginPath();
-        ctx.arc(x, y, 1.8, 0, 2 * Math.PI);
-        ctx.fill();
-      }
+      document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => {});
     }
   };
 
-  // Real-Time Oscilloscope Rendering
-  const renderScope = useCallback(() => {
-    const canvas = scopeCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-
-    // Scope background & grid
-    ctx.fillStyle = '#020617';
-    ctx.fillRect(0, 0, width, height);
-
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < width; x += 30) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
-    }
-    for (let y = 0; y < height; y += 20) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-    }
-
-    // Center zero-voltage reference line
-    const zeroY = height / 2;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(0, zeroY);
-    ctx.lineTo(width, zeroY);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    const data = scopeDataRef.current;
-    if (data.length < 2) return;
-
-    // Dynamic vertical scale
-    let maxV = 1;
-    data.forEach(d => {
-      if (Math.abs(d.v) > maxV) maxV = Math.abs(d.v);
-    });
-    maxV = Math.max(2, Math.ceil(maxV * 1.2));
-
-    const scaleY = (zeroY - 10) / maxV;
-
-    // Plot Voltage Waveform (Cyan)
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    data.forEach((pt, i) => {
-      const x = (i / (data.length - 1)) * width;
-      const y = zeroY - pt.v * scaleY;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-
-    // Scale readout overlay
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = '11px JetBrains Mono, monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(`+${maxV}V`, 8, 14);
-    ctx.fillText(`-${maxV}V`, 8, height - 6);
-    ctx.fillText('0V', 8, zeroY - 4);
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  useEffect(() => {
-    renderScopeRef.current = renderScope;
-  }, [renderScope]);
-
-  // Mouse / Pointer Interaction handlers
-  const handleMouseDown = (e) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    if (activeTool === 'select') {
-      // Find clicked element
-      const clicked = elements.find(el => {
-        if (!el.p1) return false;
-        if (el.p2) {
-          const d1 = ptDist({ x, y }, el.p1);
-          const d2 = ptDist({ x, y }, el.p2);
-          const dLine = ptDist(el.p1, el.p2);
-          return (d1 + d2 - dLine) < 6;
-        }
-        return ptDist({ x, y }, el.p1) < 15;
-      });
-
-      if (clicked) {
-        // If switch clicked, toggle it directly!
-        if (clicked.type === 's') {
-          clicked.closed = !clicked.closed;
-          setElements([...elements]);
-        }
-        setSelectedElId(clicked.id);
-        setDraggedElement(clicked);
-        setDragOffset({ x: x - clicked.p1.x, y: y - clicked.p1.y });
-      } else {
-        setSelectedElId(null);
-      }
-    } else {
-      // Start drawing component
-      setDrawingStart({ x: snap(x), y: snap(y) });
-    }
-  };
-
-  const handleMouseMove = (e) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setCurrentMouse({ x, y });
-
-    if (draggedElement && activeTool === 'select') {
-      const newX = snap(x - dragOffset.x);
-      const newY = snap(y - dragOffset.y);
-      const dx = newX - draggedElement.p1.x;
-      const dy = newY - draggedElement.p1.y;
-
-      draggedElement.p1.x += dx;
-      draggedElement.p1.y += dy;
-      if (draggedElement.p2) {
-        draggedElement.p2.x += dx;
-        draggedElement.p2.y += dy;
-      }
-      setElements([...elements]);
-    }
-  };
-
-  const handleMouseUp = (e) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = snap(e.clientX - rect.left);
-    const y = snap(e.clientY - rect.top);
-
-    if (drawingStart && activeTool !== 'select') {
-      const p1 = drawingStart;
-      const p2 = { x, y };
-
-      if (ptDist(p1, p2) >= 15 || activeTool === 'g') {
-        const newId = `el_${Date.now()}`;
-        let newEl = {
-          id: newId,
-          type: activeTool,
-          p1,
-          p2: activeTool === 'g' ? { x: p1.x, y: p1.y + 20 } : p2,
-          state: {}
-        };
-
-        if (activeTool === 'r') newEl.value = 1000;
-        if (activeTool === 'c') newEl.value = 1e-5;
-        if (activeTool === 'l') newEl.value = 0.1;
-        if (activeTool === 'vdc') newEl.value = 5;
-        if (activeTool === 'vac') { newEl.value = 10; newEl.freq = 50; }
-        if (activeTool === 'z') newEl.vz = 5.1;
-        if (activeTool === 's') newEl.closed = true;
-
-        setElements(prev => [...prev, newEl]);
-        setSelectedElId(newId);
-      }
-      setDrawingStart(null);
-    }
-
-    setDraggedElement(null);
-  };
-
-  const handleDoubleClick = () => {
-    const selected = elements.find(e => e.id === selectedElId);
-    if (selected && ['r', 'c', 'l', 'vdc', 'vac', 'z'].includes(selected.type)) {
-      setEditModalEl({ ...selected });
-    }
-  };
-
-  // Keyboard shortcut actions
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-      if (e.key === ' ' || e.code === 'Space') {
-        e.preventDefault();
-        setIsRunning(r => !r);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedElId) {
-          setElements(prev => prev.filter(el => el.id !== selectedElId));
-          setSelectedElId(null);
-        }
-      } else if (e.key.toLowerCase() === 'w') setActiveTool('w');
-      else if (e.key.toLowerCase() === 'r') setActiveTool('r');
-      else if (e.key.toLowerCase() === 'c') setActiveTool('c');
-      else if (e.key.toLowerCase() === 'l') setActiveTool('l');
-      else if (e.key.toLowerCase() === 'd') setActiveTool('d');
-      else if (e.key.toLowerCase() === 'z') setActiveTool('z');
-      else if (e.key.toLowerCase() === 'g') setActiveTool('g');
-      else if (e.key.toLowerCase() === 'v') setActiveTool('vac');
-      else if (e.key.toLowerCase() === 's') setActiveTool('s');
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedElId]);
-
-  const selectedElement = elements.find(e => e.id === selectedElId);
-
   return (
-    <div className="circuit-sim-native">
-      {/* Top Navbar */}
-      <header className="sim-header glass">
-        <div className="sim-nav-left">
-          <button className="btn btn-ghost sim-btn" onClick={() => navigate('/')}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <div className={`circuit-sim-page ${isFullscreen ? 'is-fullscreen' : ''}`} ref={containerRef}>
+      {/* Sleek, Non-Crowded Arsenal Top Bar */}
+      <header className="circuit-sim-topbar">
+        {/* Left: Back & Title */}
+        <div className="sim-bar-left">
+          <button
+            className="sim-bar-btn sim-back-btn"
+            onClick={() => navigate('/')}
+            title="Return to Tool Hub"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            <span>Home</span>
+            <span>Tool Hub</span>
           </button>
-          <div className="sim-brand">
-            <span className="sim-brand-icon">⚡</span>
-            <span className="sim-brand-title">Circuit Simulator</span>
-            <span className="sim-badge">Native Engine</span>
+
+          <div className="sim-title-group">
+            <span className="sim-lightning">⚡</span>
+            <h1 className="sim-title">Circuit Simulator</h1>
+            <span className="sim-engine-badge">Original Engine</span>
           </div>
         </div>
 
-        <div className="sim-nav-center">
-          {/* Preset Selector */}
-          <div className="sim-preset-wrap">
-            <label>Preset:</label>
+        {/* Center: Study Presets & Add from Code */}
+        <div className="sim-bar-center">
+          <div className="sim-preset-picker">
+            <label htmlFor="sim-preset-select" className="sim-preset-label">Preset:</label>
             <select
-              className="sim-select"
+              id="sim-preset-select"
+              className="sim-preset-select"
               value={selectedPreset}
-              onChange={(e) => loadPreset(e.target.value)}
+              onChange={(e) => handleSelectPreset(e.target.value)}
             >
-              {PRESETS.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+              {STUDY_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
-              {selectedPreset === 'custom' && <option value="custom">Custom Netlist</option>}
+              {selectedPreset === 'custom' && (
+                <option value="custom">★ Custom Netlist (Code)</option>
+              )}
             </select>
           </div>
 
-          {/* Add from Code button */}
-          <button className="btn btn-primary sim-code-btn" onClick={openCodeModal}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <button
+            className="sim-bar-btn sim-btn-primary"
+            onClick={() => setShowCodeModal(true)}
+            title="Import or paste circuit code netlist"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="16 18 22 12 16 6" />
               <polyline points="8 6 2 12 8 18" />
             </svg>
             <span>Add from Code</span>
           </button>
-
-          {/* Export Code button */}
-          <button className="btn btn-ghost sim-btn" onClick={handleExportCode} title="Copy Netlist Code">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="9" y="9" width="13" height="13" rx="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-            <span>{copyStatus ? '✓ Copied!' : 'Export Code'}</span>
-          </button>
         </div>
 
-        <div className="sim-nav-right">
-          {/* Speed Selector */}
-          <div className="sim-speed-pills" title="Simulation Speed">
-            {[0.5, 1, 2].map((spd) => (
-              <button
-                key={spd}
-                className={`speed-pill ${simSpeed === spd ? 'active' : ''}`}
-                onClick={() => setSimSpeed(spd)}
-              >
-                {spd}x
-              </button>
-            ))}
-          </div>
-
+        {/* Right: Fullscreen, Help, External */}
+        <div className="sim-bar-right">
           <button
-            className={`btn ${isRunning ? 'btn-primary' : 'btn-ghost'} sim-run-btn`}
-            onClick={() => setIsRunning(r => !r)}
+            className="sim-bar-btn"
+            onClick={() => setShowHelp(true)}
+            title="Shortcuts & Tips"
           >
-            {isRunning ? '⏸ Pause' : '▶ Run'}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>Help</span>
           </button>
 
           <button
-            className="btn btn-ghost sim-btn"
-            onClick={() => { setElements([]); setSelectedElId(null); scopeDataRef.current = []; }}
-            title="Clear Schematic"
+            className="sim-bar-btn"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
           >
-            Clear
+            {isFullscreen ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="4 14 10 14 10 20" />
+                <polyline points="20 10 14 10 14 4" />
+                <line x1="14" y1="10" x2="21" y2="3" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 3 21 3 21 9" />
+                <polyline points="9 21 3 21 3 15" />
+                <line x1="21" y1="3" x2="14" y2="10" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            )}
+            <span>{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
           </button>
 
-          <button
-            className={`btn btn-ghost sim-btn ${showScope ? 'active' : ''}`}
-            onClick={() => setShowScope(s => !s)}
-            title="Toggle Oscilloscope"
+          <a
+            href={simUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="sim-bar-btn"
+            title="Open in new window"
           >
-            📊 Scope
-          </button>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </a>
         </div>
       </header>
 
-      {/* Main Workspace Layout */}
-      <div className="sim-workspace">
-        {/* Left Component Toolbox */}
-        <aside className="sim-toolbox glass">
-          <span className="toolbox-title">Components</span>
-          <div className="toolbox-grid">
-            {TOOLS.map(tool => (
-              <button
-                key={tool.id}
-                className={`tool-btn ${activeTool === tool.id ? 'active' : ''}`}
-                onClick={() => setActiveTool(tool.id)}
-                title={tool.label}
-              >
-                <span className="tool-icon">{tool.icon}</span>
-                <span className="tool-name">{tool.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="sim-hint">
-            <p><strong>Hotkeys:</strong> Space (Pause), W (Wire), R (Resistor), C (Cap), D (Diode), Z (Zener), Delete (Remove)</p>
-          </div>
-        </aside>
-
-        {/* Center Schematic Canvas */}
-        <main className="sim-canvas-container">
-          <canvas
-            ref={canvasRef}
-            width={1100}
-            height={600}
-            className="sim-canvas"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onDoubleClick={handleDoubleClick}
-          />
-
-          {/* Quick Inspector badge for selected element */}
-          {selectedElement && (
-            <div className="sim-inspector glass">
-              <span className="inspector-type">{selectedElement.type.toUpperCase()} Component</span>
-              <span className="inspector-val">
-                Voltage: {(selectedElement.state?.v || 0).toFixed(3)} V
-              </span>
-              <span className="inspector-val">
-                Current: {((selectedElement.state?.i || 0) * 1000).toFixed(3)} mA
-              </span>
-              {['r', 'c', 'l', 'vdc', 'vac', 'z'].includes(selectedElement.type) && (
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setEditModalEl({ ...selectedElement })}
-                >
-                  Edit Value
-                </button>
-              )}
-            </div>
-          )}
-        </main>
+      {/* Main Original CircuitJS Frame (Uncrowded, Full Viewport) */}
+      <div className="circuit-iframe-container">
+        <iframe
+          key={iframeKey}
+          id="circuitjs-iframe"
+          className="circuitjs-iframe"
+          title="CircuitJS Simulator"
+          src={simUrl}
+          allow="fullscreen"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
+        />
       </div>
 
-      {/* Bottom Live Oscilloscope Panel */}
-      {showScope && (
-        <section className="sim-scope-panel glass">
-          <div className="scope-header">
-            <div className="scope-title-group">
-              <span className="scope-icon">📈</span>
-              <h3>Real-Time Oscilloscope Waveform</h3>
-              <span className="scope-target">
-                Probing: {selectedElement ? `${selectedElement.type.toUpperCase()} (${selectedElement.id})` : 'None'}
-              </span>
-            </div>
-            <div className="scope-stats">
-              <span>V_inst: {(selectedElement?.state?.v || 0).toFixed(3)} V</span>
-              <span>I_inst: {((selectedElement?.state?.i || 0) * 1000).toFixed(2)} mA</span>
-            </div>
-          </div>
-          <div className="scope-body">
-            <canvas ref={scopeCanvasRef} width={1000} height={130} className="scope-canvas" />
-          </div>
-        </section>
-      )}
-
-      {/* Modal: "Add from Code" */}
+      {/* "Add from Code" Modal */}
       {showCodeModal && (
-        <div className="sim-modal-overlay" onClick={() => setShowCodeModal(false)}>
-          <div className="sim-modal glass" onClick={e => e.stopPropagation()}>
+        <div className="sim-modal-backdrop" onClick={() => setShowCodeModal(false)}>
+          <div className="sim-modal glass" onClick={(e) => e.stopPropagation()}>
             <div className="sim-modal-header">
-              <h3>Add / Import Circuit from Code</h3>
-              <button className="btn btn-ghost" onClick={() => setShowCodeModal(false)}>✕</button>
-            </div>
-            <div className="sim-modal-body">
-              <p className="sim-modal-desc">
-                Paste your circuit netlist or schematic code below. You can also pick from common study presets to load them into the editor.
-              </p>
-
-              {/* Sample template buttons */}
-              <div className="sim-modal-templates">
-                <span>Load Sample:</span>
-                {PRESETS.map(p => (
-                  <button
-                    key={p.id}
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setCustomCode(exportNetlist(p.elements))}
-                  >
-                    {p.name}
-                  </button>
-                ))}
+              <div className="modal-title-wrap">
+                <span className="modal-icon">&lt;/&gt;</span>
+                <h3>Add Circuit from Code / Netlist</h3>
               </div>
-
-              <textarea
-                className="sim-modal-textarea"
-                rows={10}
-                value={customCode}
-                onChange={e => setCustomCode(e.target.value)}
-                placeholder="r 140 160 260 160 0 1000&#10;c 260 160 260 300 0 0.00001&#10;v 140 300 140 160 0 1 50 10"
-                spellCheck="false"
-              />
+              <button className="modal-close-btn" onClick={() => setShowCodeModal(false)}>
+                ✕
+              </button>
             </div>
-            <div className="sim-modal-footer">
-              <button className="btn btn-ghost" onClick={() => setCustomCode('')}>Clear</button>
-              <div className="sim-modal-actions">
-                <button className="btn btn-ghost" onClick={() => setShowCodeModal(false)}>Cancel</button>
-                <button className="btn btn-primary" onClick={handleLoadFromCode}>Load into Simulator</button>
+
+            <p className="modal-desc">
+              Paste your CircuitJS / ASCII netlist code below, or pick a sample template. The simulator will instantly compile and load it.
+            </p>
+
+            {/* Quick Sample Loaders */}
+            <div className="modal-samples">
+              <span className="samples-label">Load Template:</span>
+              <button
+                type="button"
+                className="sample-pill"
+                onClick={() => setCustomCode(STUDY_PRESETS[0].code)}
+              >
+                Zener Diode Clipper
+              </button>
+              <button
+                type="button"
+                className="sample-pill"
+                onClick={() =>
+                  setCustomCode(
+`$ 1 0.000005 10.20027730826997 50 5 43
+v 160 320 160 200 0 1 50 10 0 0 0.5
+r 160 200 280 200 0 1000
+c 280 200 280 320 0 0.00001
+w 160 320 280 320 0
+g 220 320 220 350 0
+o 0 64 0 4099 20 0.05 0 -1
+o 2 64 0 4099 20 0.05 1 -1`
+                  )
+                }
+              >
+                RC Low-Pass Filter
+              </button>
+              <button
+                type="button"
+                className="sample-pill"
+                onClick={() =>
+                  setCustomCode(
+`$ 1 0.000005 10.20027730826997 50 5 43
+v 160 320 160 200 0 1 50 10 0 0 0.5
+r 160 200 240 200 0 100
+l 240 200 320 200 0 0.1
+c 320 200 320 320 0 0.00001
+w 160 320 320 320 0
+g 240 320 240 350 0
+o 0 64 0 4099 20 0.05 0 -1
+o 3 64 0 4099 20 0.05 1 -1`
+                  )
+                }
+              >
+                RLC Resonant Circuit
+              </button>
+            </div>
+
+            {/* Code Textarea */}
+            <textarea
+              className="modal-code-textarea"
+              rows={11}
+              value={customCode}
+              onChange={(e) => setCustomCode(e.target.value)}
+              placeholder="Paste CircuitJS netlist code here (e.g. $ 1 0.000005 ...)"
+              spellCheck={false}
+            />
+
+            <div className="modal-actions">
+              <span className="modal-hint">
+                Tip: You can also use <strong>File → Import From Text</strong> inside the simulator canvas anytime.
+              </span>
+              <div className="modal-btn-group">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setShowCodeModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleLoadFromCode}
+                >
+                  Load into Simulator
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal: Component Value Editor */}
-      {editModalEl && (
-        <div className="sim-modal-overlay" onClick={() => setEditModalEl(null)}>
-          <div className="sim-modal glass sim-edit-modal" onClick={e => e.stopPropagation()}>
+      {/* Help / Shortcuts Modal */}
+      {showHelp && (
+        <div className="sim-modal-backdrop" onClick={() => setShowHelp(false)}>
+          <div className="sim-modal sim-help-modal glass" onClick={(e) => e.stopPropagation()}>
             <div className="sim-modal-header">
-              <h3>Edit {editModalEl.type.toUpperCase()} Properties</h3>
-              <button className="btn btn-ghost" onClick={() => setEditModalEl(null)}>✕</button>
+              <div className="modal-title-wrap">
+                <span className="modal-icon">💡</span>
+                <h3>CircuitJS1 Tips & Features</h3>
+              </div>
+              <button className="modal-close-btn" onClick={() => setShowHelp(false)}>
+                ✕
+              </button>
             </div>
-            <div className="sim-modal-body">
-              {['r', 'c', 'l', 'vdc', 'vac'].includes(editModalEl.type) && (
-                <div className="sim-input-row">
-                  <label>Value ({editModalEl.type === 'r' ? 'Ω' : editModalEl.type === 'c' ? 'F' : editModalEl.type === 'l' ? 'H' : 'V'}):</label>
-                  <input
-                    type="number"
-                    className="sim-input"
-                    value={editModalEl.value || 0}
-                    onChange={e => setEditModalEl({ ...editModalEl, value: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
-              )}
-              {editModalEl.type === 'vac' && (
-                <div className="sim-input-row">
-                  <label>Frequency (Hz):</label>
-                  <input
-                    type="number"
-                    className="sim-input"
-                    value={editModalEl.freq || 50}
-                    onChange={e => setEditModalEl({ ...editModalEl, freq: parseFloat(e.target.value) || 50 })}
-                  />
-                </div>
-              )}
-              {editModalEl.type === 'z' && (
-                <div className="sim-input-row">
-                  <label>Zener Breakdown Voltage (V):</label>
-                  <input
-                    type="number"
-                    className="sim-input"
-                    value={editModalEl.vz || 5.1}
-                    onChange={e => setEditModalEl({ ...editModalEl, vz: parseFloat(e.target.value) || 5.1 })}
-                  />
-                </div>
-              )}
+
+            <div className="help-content">
+              <h4>🎯 Adding Multiple Oscilloscopes</h4>
+              <p>
+                To view waveforms at any node or component, <strong>Right-Click</strong> on the component or wire and select <strong>&quot;View in Scope&quot;</strong>. You can add as many scopes across the circuit as you need!
+              </p>
+
+              <h4>🖱️ Right-Click Context Menu</h4>
+              <p>
+                Right-clicking on any component allows you to:
+              </p>
+              <ul>
+                <li><strong>View in Scope</strong>: Attach a dedicated oscilloscope</li>
+                <li><strong>Edit...</strong>: Change resistance, capacitance, frequency, or breakdown voltage</li>
+                <li><strong>Sliders...</strong>: Create real-time sliders on the right sidebar</li>
+                <li><strong>Flip / Rotate</strong>: Change component orientation</li>
+              </ul>
+
+              <h4>⌨️ Common Keyboard Shortcuts</h4>
+              <div className="shortcuts-grid">
+                <div><kbd>Space</kbd> Pause / Run Simulation</div>
+                <div><kbd>W</kbd> Add Wire</div>
+                <div><kbd>R</kbd> Add Resistor</div>
+                <div><kbd>C</kbd> Add Capacitor</div>
+                <div><kbd>L</kbd> Add Inductor</div>
+                <div><kbd>D</kbd> Add Diode</div>
+                <div><kbd>Z</kbd> Add Zener Diode</div>
+                <div><kbd>S</kbd> Add Switch</div>
+                <div><kbd>G</kbd> Add Ground</div>
+                <div><kbd>V</kbd> Add AC Source</div>
+                <div><kbd>Del</kbd> Delete Selected</div>
+                <div><kbd>Ctrl+Z</kbd> Undo</div>
+              </div>
             </div>
-            <div className="sim-modal-footer">
-              <button className="btn btn-ghost" onClick={() => setEditModalEl(null)}>Cancel</button>
+
+            <div className="modal-actions">
+              <div />
               <button
+                type="button"
                 className="btn btn-primary"
-                onClick={() => {
-                  setElements(prev => prev.map(el => el.id === editModalEl.id ? editModalEl : el));
-                  setEditModalEl(null);
-                }}
+                onClick={() => setShowHelp(false)}
               >
-                Save Properties
+                Got It
               </button>
             </div>
           </div>

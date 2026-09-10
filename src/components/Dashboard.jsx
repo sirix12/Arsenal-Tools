@@ -63,17 +63,17 @@ const toolHubItems = [
     path: '/circuit-simulator',
     name: 'Circuit Simulator',
     module: 'Electronics',
-    tagline: 'Interactive MNA & SPICE Lab',
-    badge: 'Native Lab',
+    tagline: 'CircuitJS1 Interactive Lab',
+    badge: 'Original Engine',
     description:
-      'Real-time circuit schematic canvas with animated current flow, live dual-channel oscilloscope, interactive switches, presets, and CircuitJS code import.',
+      'Original CircuitJS1 simulation engine with multi-oscilloscope support, right-click context menus, animated current flow, 100+ circuits, and netlist code import.',
     icon: (
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
       </svg>
     ),
     gradient: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
-    features: ['Real-time MNA solver', 'Live dual oscilloscope', 'Add from CircuitJS code', 'Zener clipping & filter presets'],
+    features: ['Original CircuitJS1 engine', 'Multi-channel oscilloscopes', 'Right-click context menus', 'Add from Code & netlist import'],
     isReady: true,
   },
   {
@@ -152,7 +152,6 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
-      {/* Hero */}
       <section className="dashboard-hero">
         <div className="hero-badge">
           <span>⚡</span> All tools. One place.
@@ -165,7 +164,6 @@ export default function Dashboard() {
         </p>
       </section>
 
-      {/* Core Productivity Suite */}
       <section className="dashboard-section">
         <div className="section-header">
           <div className="section-badge">Productivity Suite</div>
@@ -218,7 +216,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Tool Hub Section (Extensible for all modules) */}
       <section id="tool-hub" className="dashboard-section tool-hub-section">
         <div className="section-header">
           <div className="section-badge hub-badge">🛠️ Tool Hub</div>
@@ -228,7 +225,6 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Category Filter Pills */}
         <div className="hub-categories" role="tablist" aria-label="Tool Hub categories">
           {hubCategories.map((cat) => (
             <button
@@ -243,7 +239,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Tool Hub Cards */}
         <div className="tools-grid">
           {filteredHubItems.map((tool) => (
             <div
@@ -302,9 +297,8 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Footer note */}
       <footer className="dashboard-footer">
-        <p>All processing & circuit simulation happens in your browser. Fully offline-capable and private.</p>
+        <p>All processing happens in your browser. Your files never leave your device.</p>
       </footer>
     </div>
   );

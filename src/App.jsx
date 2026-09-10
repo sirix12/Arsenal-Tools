@@ -75,13 +75,15 @@ export default function App() {
       {/* Page content */}
       <main className="page-content">
         <Routes>
-          <Route path="/"          element={<Dashboard />} />
+          <Route path="/" element={<Dashboard />} />
           <Route path="/md-reader" element={<MarkdownReader />} />
-          <Route path="/pdf-tools"         element={<PdfTools />} />
-          <Route path="/quiz"              element={<QuizGenerator />} />
+          <Route path="/pdf-tools" element={<PdfTools />} />
+          <Route path="/quiz" element={<QuizGenerator />} />
+          <Route path="/pdf-tools" element={<PdfTools />} />
+          <Route path="/quiz" element={<QuizGenerator />} />
           <Route path="/circuit-simulator" element={<CircuitSimulator />} />
           {/* Fallback */}
-          <Route path="*"          element={<Dashboard />} />
+          <Route path="*" element={<Dashboard />} />
         </Routes>
       </main>
     </BrowserRouter>
