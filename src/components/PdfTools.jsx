@@ -18,22 +18,22 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 ------------------------------------------------------------------- */
 const TOOLS = [
   { id: 'compress', title: 'Compress PDF', desc: 'Reduce file size while maintaining quality.', icon: '🗜️', category: 'modify', accepts: '.pdf', multiple: false },
-  { id: 'merge',    title: 'Merge PDF',    desc: 'Combine multiple PDFs in any order.',         icon: '➕', category: 'modify', accepts: '.pdf', multiple: true },
-  { id: 'remove',   title: 'Remove Pages', desc: 'Delete unwanted pages from a PDF.',           icon: '🗑️', category: 'modify', accepts: '.pdf', multiple: false },
-  { id: 'split',    title: 'Split / Extract', desc: 'Extract pages or split each into a file.', icon: '✂️', category: 'modify', accepts: '.pdf', multiple: false },
-  { id: 'organize', title: 'Organize Pages', desc: 'Reorder pages via drag & drop.',            icon: '🔄', category: 'modify', accepts: '.pdf', multiple: false },
+  { id: 'merge', title: 'Merge PDF', desc: 'Combine multiple PDFs in any order.', icon: '➕', category: 'modify', accepts: '.pdf', multiple: true },
+  { id: 'remove', title: 'Remove Pages', desc: 'Delete unwanted pages from a PDF.', icon: '🗑️', category: 'modify', accepts: '.pdf', multiple: false },
+  { id: 'split', title: 'Split / Extract', desc: 'Extract pages or split each into a file.', icon: '✂️', category: 'modify', accepts: '.pdf', multiple: false },
+  { id: 'organize', title: 'Organize Pages', desc: 'Reorder pages via drag & drop.', icon: '🔄', category: 'modify', accepts: '.pdf', multiple: false },
 
-  { id: 'md-pdf',   title: 'Markdown → PDF', desc: 'Write Markdown and save as a styled PDF.', icon: '📝', category: 'to-pdf',   accepts: null,    multiple: false },
-  { id: 'word-pdf', title: 'Word → PDF',      desc: 'Convert .docx files to PDF.',              icon: '📄', category: 'to-pdf',   accepts: '.docx', multiple: false },
-  { id: 'img-pdf',  title: 'JPG → PDF',       desc: 'Convert images (JPG/PNG/WEBP) to PDF.',   icon: '🖼️', category: 'to-pdf',   accepts: 'image/*', multiple: true },
+  { id: 'md-pdf', title: 'Markdown → PDF', desc: 'Write Markdown and save as a styled PDF.', icon: '📝', category: 'to-pdf', accepts: null, multiple: false },
+  { id: 'word-pdf', title: 'Word → PDF', desc: 'Convert .docx files to PDF.', icon: '📄', category: 'to-pdf', accepts: '.docx', multiple: false },
+  { id: 'img-pdf', title: 'JPG → PDF', desc: 'Convert images (JPG/PNG/WEBP) to PDF.', icon: '🖼️', category: 'to-pdf', accepts: 'image/*', multiple: true },
 
-  { id: 'pdf-word',   title: 'PDF → Word',   desc: 'Extract text into an editable .docx.',     icon: '📝', category: 'from-pdf', accepts: '.pdf', multiple: false },
-  { id: 'pdf-images', title: 'PDF → Images', desc: 'Export each page as a JPG image.',         icon: '🖼️', category: 'from-pdf', accepts: '.pdf', multiple: false },
+  { id: 'pdf-word', title: 'PDF → Word', desc: 'Extract text into an editable .docx.', icon: '📝', category: 'from-pdf', accepts: '.pdf', multiple: false },
+  { id: 'pdf-images', title: 'PDF → Images', desc: 'Export each page as a JPG image.', icon: '🖼️', category: 'from-pdf', accepts: '.pdf', multiple: false },
 ];
 
 const CATEGORIES = [
-  { key: 'modify',   label: '🔧 Modify PDF' },
-  { key: 'to-pdf',   label: '📥 Convert to PDF' },
+  { key: 'modify', label: '🔧 Modify PDF' },
+  { key: 'to-pdf', label: '📥 Convert to PDF' },
   { key: 'from-pdf', label: '📤 Convert from PDF' },
 ];
 
@@ -136,16 +136,16 @@ export default function PdfTools() {
     setMsg('Processing…', 'info');
     try {
       switch (activeTool.id) {
-        case 'compress':    await compress(); break;
-        case 'merge':       await merge(); break;
-        case 'remove':      await removePages(); break;
-        case 'split':       await split(); break;
-        case 'organize':    await organize(); break;
-        case 'md-pdf':      await generatePdfFromHtml(`<div style="padding:2cm;font-family:sans-serif">${marked.parse(mdText)}</div>`, 'markdown_doc'); break;
-        case 'word-pdf':    await wordToPdf(); break;
-        case 'img-pdf':     await imgToPdf(); break;
-        case 'pdf-word':    await pdfToWord(); break;
-        case 'pdf-images':  await pdfToImages(); break;
+        case 'compress': await compress(); break;
+        case 'merge': await merge(); break;
+        case 'remove': await removePages(); break;
+        case 'split': await split(); break;
+        case 'organize': await organize(); break;
+        case 'md-pdf': await generatePdfFromHtml(`<div style="padding:2cm;font-family:sans-serif">${marked.parse(mdText)}</div>`, 'markdown_doc'); break;
+        case 'word-pdf': await wordToPdf(); break;
+        case 'img-pdf': await imgToPdf(); break;
+        case 'pdf-word': await pdfToWord(); break;
+        case 'pdf-images': await pdfToImages(); break;
         default: break;
       }
       setMsg('Done! ✓', 'success');

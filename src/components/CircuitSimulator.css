@@ -1,0 +1,478 @@
+/* ============================================================
+   Native Circuit Simulator Styles
+   ============================================================ */
+
+.circuit-sim-native {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--navbar-h, 64px));
+  background: #020617;
+  color: var(--text-main);
+  overflow: hidden;
+}
+
+/* Header Navbar */
+.sim-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1.25rem;
+  border-bottom: 1px solid var(--glass-border);
+  gap: 1rem;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.sim-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.sim-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sim-brand-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.sim-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(6, 182, 212, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.sim-nav-center {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sim-preset-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.sim-select {
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.sim-code-btn {
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  border: none;
+  color: #fff;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: var(--radius-sm);
+}
+
+.sim-code-btn:hover {
+  background: linear-gradient(135deg, #0369a1, #1d4ed8);
+}
+
+.sim-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sim-speed-pills {
+  display: flex;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.speed-pill {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.speed-pill:hover {
+  color: var(--text-main);
+}
+
+.speed-pill.active {
+  background: #0284c7;
+  color: #fff;
+}
+
+.sim-run-btn {
+  padding: 0.35rem 1rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.sim-btn {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem;
+}
+
+/* Workspace */
+.sim-workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Left Toolbox */
+.sim-toolbox {
+  width: 140px;
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0.5rem;
+  overflow-y: auto;
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.toolbox-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-subtle);
+  padding: 0.2rem 0.5rem;
+}
+
+.toolbox-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.65rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: left;
+}
+
+.tool-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  border-color: var(--glass-border);
+}
+
+.tool-btn.active {
+  background: rgba(6, 182, 212, 0.15);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
+  font-weight: 600;
+}
+
+.tool-icon {
+  font-size: 1.1rem;
+  width: 20px;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.sim-hint {
+  margin-top: auto;
+  padding: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--text-subtle);
+  line-height: 1.4;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* Center Canvas */
+.sim-canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #090e1a;
+}
+
+.sim-canvas {
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+  cursor: crosshair;
+}
+
+/* Inspector Floating Badge */
+.sim-inspector {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  z-index: 6;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: var(--shadow-md);
+  min-width: 170px;
+}
+
+.inspector-type {
+  font-weight: 700;
+  color: #38bdf8;
+  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.25rem;
+}
+
+.inspector-val {
+  font-family: var(--font-mono);
+  color: var(--text-main);
+  font-size: 0.78rem;
+}
+
+/* Bottom Oscilloscope Panel */
+.sim-scope-panel {
+  border-top: 1px solid var(--glass-border);
+  padding: 0.5rem 1.25rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: #030712;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.scope-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.scope-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.scope-title-group h3 {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.scope-target {
+  font-size: 0.75rem;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+}
+
+.scope-stats {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: #38bdf8;
+}
+
+.scope-body {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.scope-canvas {
+  width: 100%;
+  max-width: 1100px;
+  height: 120px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: var(--radius-sm);
+  background: #020617;
+}
+
+/* Modals */
+.sim-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.sim-modal {
+  width: 100%;
+  max-width: 620px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border-hover);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.sim-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.sim-modal-header h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.sim-modal-body {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sim-modal-desc {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.sim-modal-templates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-subtle);
+}
+
+.sim-modal-templates .btn-sm {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.sim-modal-textarea {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  background: rgba(2, 6, 23, 0.8);
+  border: 1px solid var(--glass-border);
+  color: #38bdf8;
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  outline: none;
+  resize: vertical;
+}
+
+.sim-modal-textarea:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px #38bdf8;
+}
+
+.sim-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.sim-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sim-edit-modal {
+  max-width: 420px;
+}
+
+.sim-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sim-input-row label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.sim-input {
+  background: rgba(2, 6, 23, 0.8);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-mono);
+  outline: none;
+}
+
+.sim-input:focus {
+  border-color: #38bdf8;
+}
+
+@media (max-width: 768px) {
+  .sim-toolbox {
+    width: 60px;
+  }
+  .tool-name, .toolbox-title, .sim-hint {
+    display: none;
+  }
+  .tool-icon {
+    width: 100%;
+  }
+  .sim-header {
+    flex-wrap: wrap;
+  }
+}
