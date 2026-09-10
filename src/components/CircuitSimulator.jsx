@@ -108,9 +108,9 @@ export default function CircuitSimulator() {
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => {});
+      containerRef.current.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => { });
     } else {
-      document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => {});
+      document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => { });
     }
   };
 
@@ -280,10 +280,11 @@ export default function CircuitSimulator() {
                 className="sample-pill"
                 onClick={() =>
                   setCustomCode(
-`$ 1 0.000005 10.20027730826997 50 5 43
+                    `$ 1 0.000005 10.20027730826997 50 5 43
 v 160 320 160 200 0 1 50 10 0 0 0.5
 r 160 200 280 200 0 1000
 c 280 200 280 320 0 0.00001
+w 160 320 280 320 0
 w 160 320 220 320 0
 w 220 320 280 320 0
 g 220 320 220 350 0
@@ -299,11 +300,12 @@ o 2 64 0 4099 20 0.05 1 -1`
                 className="sample-pill"
                 onClick={() =>
                   setCustomCode(
-`$ 1 0.000005 10.20027730826997 50 5 43
+                    `$ 1 0.000005 10.20027730826997 50 5 43
 v 160 320 160 200 0 1 50 10 0 0 0.5
 r 160 200 240 200 0 100
 l 240 200 320 200 0 0.1
 c 320 200 320 320 0 0.00001
+w 160 320 320 320 0
 w 160 320 240 320 0
 w 240 320 320 320 0
 g 240 320 240 350 0
@@ -366,6 +368,16 @@ o 3 64 0 4099 20 0.05 1 -1`
             </div>
 
             <div className="help-content">
+              <h4>🔌 Connecting Wires & Snapping (No Red Dots)</h4>
+              <p>
+                CircuitJS connects components at <strong>endpoints</strong> on a grid. If you see a <strong style={{ color: '#ef4444' }}>Red Dot 🔴</strong>, it means a terminal is floating or unconnected.
+              </p>
+              <ul>
+                <li><strong>Branch off an existing wire</strong>: Right-click the wire and choose <strong>&quot;Split Wire&quot;</strong>, or draw a new wire directly to it to create a junction (<strong style={{ color: '#ffffff' }}>White Dot ⚪</strong>).</li>
+                <li><strong>Snap to Nearest Grid</strong>: If terminals are misaligned, press <kbd>Ctrl+A</kbd> then click <strong>Edit → Align to Grid</strong>.</li>
+                <li><strong>Connecting Ground</strong>: Ground only connects at its single top terminal dot.</li>
+              </ul>
+
               <h4>🎯 Adding Multiple Oscilloscopes</h4>
               <p>
                 To view waveforms at any node or component, <strong>Right-Click</strong> on the component or wire and select <strong>&quot;View in Scope&quot;</strong>. You can add as many scopes across the circuit as you need!
