@@ -88,6 +88,7 @@
 .navbar-circuit-actions {
   display: flex;
   align-items: center;
+  gap: 0.35rem;
   margin-left: auto;
 }
 
@@ -113,6 +114,22 @@
   transform: translateY(-1px);
 }
 
+.navbar-sim-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.navbar-sim-icon-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-surface-hover);
+}
+
 /* Theme toggle */
 .theme-toggle {
   padding: 0.5rem;
@@ -135,10 +152,12 @@
   .navbar-links {
     display: none;
   }
+
   .mobile-menu-btn {
     display: flex;
     align-items: center;
   }
+
   .theme-toggle {
     margin-left: auto;
   }

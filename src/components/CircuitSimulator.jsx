@@ -367,59 +367,6 @@ export default function CircuitSimulator() {
         />
       </div>
 
-      {/* Floating Action Pill (Quick-access controls without cluttering or wasting header space) */}
-      <div className="sim-floating-pill glass">
-        <button
-          type="button"
-          className="pill-btn pill-btn-primary"
-          onClick={() => setShowCodeModal(true)}
-          title="Import or paste circuit code netlist"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="16 18 22 12 16 6" />
-            <polyline points="8 6 2 12 8 18" />
-          </svg>
-          <span>Add from Code</span>
-        </button>
-
-        <button
-          type="button"
-          className="pill-btn"
-          onClick={() => setShowHelp(true)}
-          title="Shortcuts & Tips"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-          <span>Help</span>
-        </button>
-
-        <button
-          type="button"
-          className="pill-btn"
-          onClick={toggleFullscreen}
-          title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-        >
-          {isFullscreen ? (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="4 14 10 14 10 20" />
-              <polyline points="20 10 14 10 14 4" />
-              <line x1="14" y1="10" x2="21" y2="3" />
-              <line x1="3" y1="21" x2="10" y2="14" />
-            </svg>
-          ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="15 3 21 3 21 9" />
-              <polyline points="9 21 3 21 3 15" />
-              <line x1="21" y1="3" x2="14" y2="10" />
-              <line x1="3" y1="21" x2="10" y2="14" />
-            </svg>
-          )}
-        </button>
-      </div>
-
       {/* "Add from Code" Modal */}
       {showCodeModal && (
         <div className="sim-modal-backdrop" onClick={() => setShowCodeModal(false)}>
