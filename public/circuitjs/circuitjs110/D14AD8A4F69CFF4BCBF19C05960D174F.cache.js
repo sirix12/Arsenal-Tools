@@ -49314,9 +49314,10 @@ function $doMouseMove(this$static, x_0){
 
 function $draw_6(this$static){
   var p;
-  this$static.enabled?(this$static.g.strokeStyle = '#000000' , undefined):(this$static.g.strokeStyle = 'lightgrey' , undefined);
-  this$static.g.lineWidth = 1;
+  this$static.g.fillStyle = '#020617';
   $fillRect(this$static.g, 0, 0, this$static.VERTICALPANELWIDTH, SCROLLHEIGHT);
+  this$static.enabled?(this$static.g.strokeStyle = '#475569' , undefined):(this$static.g.strokeStyle = '#1e293b' , undefined);
+  this$static.g.lineWidth = 1;
   this$static.g.beginPath();
   $moveTo(this$static.g, HMARGIN + SCROLLHEIGHT - 3, 0);
   $lineTo(this$static.g, HMARGIN, SCROLLHEIGHT / 2 | 0);
@@ -49325,7 +49326,7 @@ function $draw_6(this$static){
   $lineTo(this$static.g, this$static.VERTICALPANELWIDTH - HMARGIN, SCROLLHEIGHT / 2 | 0);
   $lineTo(this$static.g, this$static.VERTICALPANELWIDTH - HMARGIN - SCROLLHEIGHT + 3, SCROLLHEIGHT);
   this$static.g.stroke();
-  this$static.enabled && (this$static.g.strokeStyle = 'grey' , undefined);
+  this$static.enabled && (this$static.g.strokeStyle = '#334155' , undefined);
   this$static.g.beginPath();
   this$static.g.lineWidth = 5;
   $moveTo(this$static.g, HMARGIN + SCROLLHEIGHT + BARMARGIN, SCROLLHEIGHT / 2 | 0);
@@ -49333,15 +49334,16 @@ function $draw_6(this$static){
   this$static.g.stroke();
   p = HMARGIN + SCROLLHEIGHT + BARMARGIN + (this$static.VERTICALPANELWIDTH - 2 * (HMARGIN + SCROLLHEIGHT + BARMARGIN)) * (this$static.val_0 - this$static.min_0) / (this$static.max_0 - this$static.min_0);
   if (this$static.enabled) {
-    !!this$static.attachedElm && $needsHighlight(this$static.attachedElm)?$setStrokeStyleWeb(this$static.g, $getHexValue(selectColor_0)):(this$static.g.strokeStyle = 'red' , undefined);
+    !!this$static.attachedElm && $needsHighlight(this$static.attachedElm)?$setStrokeStyleWeb(this$static.g, $getHexValue(selectColor_0)):(this$static.g.strokeStyle = '#38bdf8' , undefined);
     this$static.g.beginPath();
     $moveTo(this$static.g, HMARGIN + SCROLLHEIGHT + BARMARGIN, SCROLLHEIGHT / 2 | 0);
     $lineTo(this$static.g, p, SCROLLHEIGHT / 2 | 0);
     this$static.g.stroke();
-    this$static.g.strokeStyle = '#000000';
-    this$static.g.lineWidth = 2;
-    $fillRect(this$static.g, p - 2, 2, 5, SCROLLHEIGHT - 4);
-    $strokeRect(this$static.g, p - 2, 2, 5, SCROLLHEIGHT - 4);
+    this$static.g.fillStyle = '#38bdf8';
+    this$static.g.strokeStyle = '#f8fafc';
+    this$static.g.lineWidth = 1.5;
+    $fillRect(this$static.g, p - 3, 1, 6, SCROLLHEIGHT - 2);
+    $strokeRect(this$static.g, p - 3, 1, 6, SCROLLHEIGHT - 2);
   }
 }
 
@@ -49388,7 +49390,7 @@ function Scrollbar(value_0, minimum, maximum){
   $setCoordinateSpaceHeight(this.can, SCROLLHEIGHT);
   $add_5(this.pan, this.can);
   this.g = $getContext2d(this.can);
-  this.g.fillStyle = '#ffffff';
+  this.g.fillStyle = '#020617';
   $addDomHandler(this.can, this, ($clinit_ClickEvent() , $clinit_ClickEvent() , TYPE_1));
   $addDomHandler(this.can, this, ($clinit_MouseDownEvent() , $clinit_MouseDownEvent() , TYPE_7));
   $addDomHandler(this.can, this, ($clinit_MouseUpEvent() , $clinit_MouseUpEvent() , TYPE_11));

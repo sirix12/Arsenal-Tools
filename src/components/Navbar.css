@@ -84,10 +84,39 @@
   transition: color var(--transition);
 }
 
+/* Circuit actions in Navbar */
+.navbar-circuit-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.navbar-sim-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.38rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35);
+  transition: all var(--transition);
+}
+
+.navbar-sim-btn:hover {
+  background: linear-gradient(135deg, #0369a1, #1d4ed8);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.5);
+  transform: translateY(-1px);
+}
+
 /* Theme toggle */
 .theme-toggle {
   padding: 0.5rem;
-  margin-left: auto;
+  margin-left: 0.5rem;
   flex-shrink: 0;
 }
 

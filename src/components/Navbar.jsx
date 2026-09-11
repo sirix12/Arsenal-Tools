@@ -74,6 +74,24 @@ export default function Navbar({ theme, onToggleTheme }) {
         ))}
       </ul>
 
+      {/* Circuit Simulator Actions */}
+      {pathname === '/circuit-simulator' && (
+        <div className="navbar-circuit-actions">
+          <button
+            type="button"
+            className="navbar-sim-btn"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-circuit-code-modal'))}
+            title="Import Circuit from Code or Netlist"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+            <span>Add from Code</span>
+          </button>
+        </div>
+      )}
+
       {/* Theme toggle */}
       <button
         className="btn btn-ghost theme-toggle"

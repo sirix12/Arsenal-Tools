@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import LZString from 'lz-string';
 import './CircuitSimulator.css';
 
@@ -302,10 +301,8 @@ function buildUrlForPreset(preset) {
 }
 
 export default function CircuitSimulator() {
-  const navigate = useNavigate();
   const containerRef = useRef(null);
 
-  const [selectedPreset, setSelectedPreset] = useState(STUDY_PRESETS[0].id);
   const [simUrl, setSimUrl] = useState(() => buildUrlForPreset(STUDY_PRESETS[0]));
   const [showCodeModal, setShowCodeModal] = useState(false);
   const [customCode, setCustomCode] = useState(STUDY_PRESETS[0].code);
@@ -313,21 +310,12 @@ export default function CircuitSimulator() {
   const [showHelp, setShowHelp] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
 
-  // Handle preset switch
-  const handleSelectPreset = (presetId) => {
-    setSelectedPreset(presetId);
-    const preset = STUDY_PRESETS.find((p) => p.id === presetId);
-    if (!preset) return;
-    setSimUrl(buildUrlForPreset(preset));
-    setIframeKey((k) => k + 1);
-  };
-
   // Handle Load from Code (with auto-repair for wire junctions and floating grounds)
   const handleLoadFromCode = () => {
     if (!customCode.trim()) return;
     const repairedCode = autoRepairNetlist(customCode.trim());
     const compressed = LZString.compressToEncodedURIComponent(repairedCode);
-    setSimUrl(`https://www.falstad.com/circuit/circuitjs.html?ctz=${compressed}`);
+    setSimUrl(`/circuitjs/circuitjs.html?ctz=${compressed}`);
     setSelectedPreset('custom');
     setShowCodeModal(false);
     setIframeKey((k) => k + 1);
@@ -347,123 +335,26 @@ export default function CircuitSimulator() {
     const handleFsChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
+    const handleOpenModal = () => setShowCodeModal(true);
+    const handleToggleFs = () => toggleFullscreen();
+    const handleOpenHelp = () => setShowHelp(true);
+
     document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    window.addEventListener('open-circuit-code-modal', handleOpenModal);
+    window.addEventListener('toggle-circuit-fullscreen', handleToggleFs);
+    window.addEventListener('open-circuit-help-modal', handleOpenHelp);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      window.removeEventListener('open-circuit-code-modal', handleOpenModal);
+      window.removeEventListener('toggle-circuit-fullscreen', handleToggleFs);
+      window.removeEventListener('open-circuit-help-modal', handleOpenHelp);
+    };
   }, []);
 
   return (
     <div className={`circuit-sim-page ${isFullscreen ? 'is-fullscreen' : ''}`} ref={containerRef}>
-      {/* Sleek, Non-Crowded Arsenal Top Bar */}
-      <header className="circuit-sim-topbar">
-        {/* Left: Back & Title */}
-        <div className="sim-bar-left">
-          <button
-            className="sim-bar-btn sim-back-btn"
-            onClick={() => navigate('/')}
-            title="Return to Tool Hub"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            <span>Tool Hub</span>
-          </button>
-
-          <div className="sim-title-group">
-            <span className="sim-lightning">⚡</span>
-            <h1 className="sim-title">Circuit Simulator</h1>
-            <span className="sim-engine-badge">Original Engine</span>
-          </div>
-        </div>
-
-        {/* Center: Study Presets & Add from Code */}
-        <div className="sim-bar-center">
-          <div className="sim-preset-picker">
-            <label htmlFor="sim-preset-select" className="sim-preset-label">Preset:</label>
-            <select
-              id="sim-preset-select"
-              className="sim-preset-select"
-              value={selectedPreset}
-              onChange={(e) => handleSelectPreset(e.target.value)}
-            >
-              {STUDY_PRESETS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-              {selectedPreset === 'custom' && (
-                <option value="custom">★ Custom Netlist (Code)</option>
-              )}
-            </select>
-          </div>
-
-          <button
-            className="sim-bar-btn sim-btn-primary"
-            onClick={() => setShowCodeModal(true)}
-            title="Import or paste circuit code netlist"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="16 18 22 12 16 6" />
-              <polyline points="8 6 2 12 8 18" />
-            </svg>
-            <span>Add from Code</span>
-          </button>
-        </div>
-
-        {/* Right: Fullscreen, Help, External */}
-        <div className="sim-bar-right">
-          <button
-            className="sim-bar-btn"
-            onClick={() => setShowHelp(true)}
-            title="Shortcuts & Tips"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <span>Help</span>
-          </button>
-
-          <button
-            className="sim-bar-btn"
-            onClick={toggleFullscreen}
-            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-          >
-            {isFullscreen ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="4 14 10 14 10 20" />
-                <polyline points="20 10 14 10 14 4" />
-                <line x1="14" y1="10" x2="21" y2="3" />
-                <line x1="3" y1="21" x2="10" y2="14" />
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="15 3 21 3 21 9" />
-                <polyline points="9 21 3 21 3 15" />
-                <line x1="21" y1="3" x2="14" y2="10" />
-                <line x1="3" y1="21" x2="10" y2="14" />
-              </svg>
-            )}
-            <span>{isFullscreen ? 'Exit' : 'Fullscreen'}</span>
-          </button>
-
-          <a
-            href={simUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="sim-bar-btn"
-            title="Open in new window"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-          </a>
-        </div>
-      </header>
-
-      {/* Main Original CircuitJS Frame (Uncrowded, Full Viewport) */}
+      {/* Main Original CircuitJS Frame (Uncrowded, 100% Full Viewport) */}
       <div className="circuit-iframe-container">
         <iframe
           key={iframeKey}
@@ -474,6 +365,59 @@ export default function CircuitSimulator() {
           allow="fullscreen"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
         />
+      </div>
+
+      {/* Floating Action Pill (Quick-access controls without cluttering or wasting header space) */}
+      <div className="sim-floating-pill glass">
+        <button
+          type="button"
+          className="pill-btn pill-btn-primary"
+          onClick={() => setShowCodeModal(true)}
+          title="Import or paste circuit code netlist"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="16 18 22 12 16 6" />
+            <polyline points="8 6 2 12 8 18" />
+          </svg>
+          <span>Add from Code</span>
+        </button>
+
+        <button
+          type="button"
+          className="pill-btn"
+          onClick={() => setShowHelp(true)}
+          title="Shortcuts & Tips"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>Help</span>
+        </button>
+
+        <button
+          type="button"
+          className="pill-btn"
+          onClick={toggleFullscreen}
+          title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+        >
+          {isFullscreen ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="4 14 10 14 10 20" />
+              <polyline points="20 10 14 10 14 4" />
+              <line x1="14" y1="10" x2="21" y2="3" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="15 3 21 3 21 9" />
+              <polyline points="9 21 3 21 3 15" />
+              <line x1="21" y1="3" x2="14" y2="10" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          )}
+        </button>
       </div>
 
       {/* "Add from Code" Modal */}
