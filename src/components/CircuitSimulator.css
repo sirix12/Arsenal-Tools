@@ -421,3 +421,9 @@
     max-width: 140px;
   }
 }
+
+/* ---------- Live2D Companion On Scope Bar ---------- */
+#live2d-widget.live2d-on-scope-bar {
+  bottom: 118px !important;
+  transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}

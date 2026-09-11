@@ -58011,7 +58011,7 @@ function $init_3(this$static){
   else {
     $appendChild($getElement(this$static.layoutPanel), resolve(sidePanelCheckbox));
     $appendChild($getElement(this$static.layoutPanel), resolve(this$static.sidePanelCheckboxLabel));
-    $addEast(this$static.layoutPanel, this$static.verticalPanel, VERTICALPANELWIDTH);
+    $addEast(this$static.layoutPanel, this$static.verticalPanel, 0);
   }
   $addNorth(this$static.layoutPanel, this$static.toolbar_0, 40);
   $insertFirst(menuBar.element, menuBar.element.childNodes[1]);
@@ -58436,7 +58436,7 @@ function $setCanvasSize(this$static){
   width_0 = $getOffsetWidth(get_0());
   height = $getOffsetHeight(get_0());
   height = height - (this$static.hideMenu?0:30);
-  $isMobile(this$static.sidePanelCheckboxLabel) || (width_0 = width_0 - VERTICALPANELWIDTH);
+  $isMobile(this$static.sidePanelCheckboxLabel) || (width_0 = width_0);
   this$static.menus.toolbarCheckItem.on && (height -= 40);
   width_0 = $wnd.Math.max(width_0, 0);
   height = $wnd.Math.max(height, 0);

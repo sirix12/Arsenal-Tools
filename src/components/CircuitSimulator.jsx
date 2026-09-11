@@ -302,6 +302,7 @@ function buildUrlForPreset(preset) {
 
 export default function CircuitSimulator() {
   const containerRef = useRef(null);
+  const iframeRef = useRef(null);
 
   const [simUrl, setSimUrl] = useState(() => buildUrlForPreset(STUDY_PRESETS[0]));
   const [showCodeModal, setShowCodeModal] = useState(false);
@@ -316,12 +317,10 @@ export default function CircuitSimulator() {
     const repairedCode = autoRepairNetlist(customCode.trim());
     const compressed = LZString.compressToEncodedURIComponent(repairedCode);
     setSimUrl(`/circuitjs/circuitjs.html?ctz=${compressed}`);
-    setSelectedPreset('custom');
-    setShowCodeModal(false);
     setIframeKey((k) => k + 1);
+    setShowCodeModal(false);
   };
 
-  // Toggle Fullscreen
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
@@ -330,6 +329,67 @@ export default function CircuitSimulator() {
       document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => { });
     }
   };
+
+  // Mouse event forwarder so Live2D anime girl tracks cursor inside the simulator
+  const handleIframeLoad = () => {
+    try {
+      const iframe = iframeRef.current;
+      if (!iframe) return;
+      const iframeWin = iframe.contentWindow;
+      if (!iframeWin) return;
+
+      const forwardMouse = (e) => {
+        const rect = iframe.getBoundingClientRect();
+        const parentEvt = new MouseEvent('mousemove', {
+          clientX: e.clientX + rect.left,
+          clientY: e.clientY + rect.top,
+          screenX: e.screenX,
+          screenY: e.screenY,
+          bubbles: true,
+          cancelable: true,
+          view: window,
+        });
+        window.dispatchEvent(parentEvt);
+        document.dispatchEvent(parentEvt);
+      };
+
+      iframeWin.addEventListener('mousemove', forwardMouse, { passive: true });
+    } catch (err) {
+      console.warn('Unable to attach iframe mouse listener:', err);
+    }
+  };
+
+  // Elevate Live2D anime girl companion to stand on top of the bottom scope bar
+  useEffect(() => {
+    let intervalId = null;
+    const applyLive2dPosition = () => {
+      const widget = document.getElementById('live2d-widget');
+      if (widget) {
+        widget.classList.add('live2d-on-scope-bar');
+        widget.style.setProperty('bottom', '118px', 'important');
+        widget.style.setProperty('transition', 'bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 'important');
+        return true;
+      }
+      return false;
+    };
+
+    if (!applyLive2dPosition()) {
+      intervalId = setInterval(() => {
+        if (applyLive2dPosition()) {
+          clearInterval(intervalId);
+        }
+      }, 250);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      const widget = document.getElementById('live2d-widget');
+      if (widget) {
+        widget.classList.remove('live2d-on-scope-bar');
+        widget.style.setProperty('bottom', '20px', 'important');
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleFsChange = () => {
@@ -357,6 +417,7 @@ export default function CircuitSimulator() {
       {/* Main Original CircuitJS Frame (Uncrowded, 100% Full Viewport) */}
       <div className="circuit-iframe-container">
         <iframe
+          ref={iframeRef}
           key={iframeKey}
           id="circuitjs-iframe"
           className="circuitjs-iframe"
@@ -364,6 +425,7 @@ export default function CircuitSimulator() {
           src={simUrl}
           allow="fullscreen"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
+          onLoad={handleIframeLoad}
         />
       </div>
 
