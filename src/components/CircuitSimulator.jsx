@@ -25,43 +25,115 @@ o 4 64 0 4099 20 0.05 1 -1`,
     id: 'diodeclip',
     name: 'Waveform Clipper (Diode)',
     description: 'Diode clipping circuit with bias voltage and output scope',
-    type: 'file',
-    file: 'diodeclip.txt',
+    type: 'code',
+    code: `$ 1 5.0E-6 11.251013186076355 58 5.0 50
+r 272 160 320 160 0 200.0
+r 320 160 320 240 0 100.0
+d 320 240 320 288 0
+R 320 288 320 320 0 0 40.0 5.0 0.0 0.0 0.5
+O 320 160 384 160 0
+R 272 160 240 160 0 3 40.0 10.0 0.0 0.0 0.5
+o 5 64 0 35 10.0 0.1 0 -1
+o 4 64 0 34 10.0 9.765625E-5 1 -1`,
   },
   {
     id: 'zenerref',
     name: 'Zener Voltage Reference',
     description: 'DC voltage regulator maintaining steady breakdown reference',
-    type: 'file',
-    file: 'zenerref.txt',
+    type: 'code',
+    code: `$ 1 5.0E-6 10.20027730826997 54 5.0 50
+R 272 160 224 160 0 1 40.0 1.0 6.7 0.0 0.5
+z 336 288 336 160 1 0.805904783 5.6
+g 336 288 336 304 0
+w 336 160 416 160 0
+r 416 160 416 288 0 10000.0
+g 416 288 416 304 0
+r 272 160 336 160 0 500.0
+o 0 64 0 34 10.0 0.003125 0 -1 in
+o 4 64 0 34 10.0 3.90625E-4 1 -1 out
+o 1 64 0 35 10.0 0.00625 2 -1 zener`,
   },
   {
     id: 'fullrectf',
     name: 'Full-Wave Bridge Rectifier & Filter',
     description: '4-diode bridge with capacitor smoothing filter and load resistor',
-    type: 'file',
-    file: 'fullrectf.txt',
+    type: 'code',
+    code: `$ 1 5.0E-6 10 50 5.0 48
+v 96 336 96 48 0 1 40.0 5.0 0.0
+w 96 48 224 48 0
+w 224 48 224 112 0
+d 224 112 288 176 0
+d 224 240 288 176 0
+d 160 176 224 112 0
+d 160 176 224 240 0
+w 224 240 224 336 0
+w 224 336 96 336 0
+w 160 176 160 272 0
+w 288 176 336 176 0
+w 160 272 336 272 0
+c 336 176 336 272 0 1.02E-4 3.2105610440835166
+w 336 176 416 176 0
+w 336 272 416 272 0
+r 416 176 416 272 0 430.0
+x 451 232 457 232 0 16 load
+o 0 32 0 2 5.0 9.765625E-5
+o 15 32 0 3 5.0 0.0125`,
   },
   {
     id: 'filt-lopass',
     name: 'RC Low-Pass Filter',
     description: 'Passive RC low-pass frequency filter with frequency response',
-    type: 'file',
-    file: 'filt-lopass.txt',
+    type: 'code',
+    code: `$ 1 5.0E-6 6.499443210467817 50 5.0 50
+O 400 160 512 160 0
+g 400 288 400 320 0
+r 240 160 400 160 0 187.0
+c 400 160 400 288 0 1.0E-5 0
+170 240 160 208 160 3 20.0 1000.0 5.0 0.1
+o 4 32 0 34 5.0 9.765625E-5 0 -1
+o 0 32 0 34 5.0 9.765625E-5 1 -1
+h 3 2 3`,
   },
   {
     id: 'lrc',
     name: 'LRC Resonant Circuit',
     description: 'Underdamped RLC tank showing resonant frequency oscillations',
-    type: 'file',
-    file: 'lrc.txt',
+    type: 'code',
+    code: `$ 1 5.0E-6 10 50 5.0 43
+r 176 80 384 80 0 10
+s 384 80 448 80 0 true false
+w 176 80 176 352 0
+c 176 352 384 352 0 1.4999999999999999E-5 -9.860041921625609
+l 384 80 384 352 0 1.0 0.03019234785322575
+v 448 352 448 80 0 0 40.0 5.0 0.0
+r 384 352 448 352 0 100.0
+o 4 64 0 3 20.0 0.05
+o 3 64 0 3 10.0 0.05
+o 0 64 0 3 0.625 0.05
+h 1 4 3`,
   },
   {
     id: '555square',
     name: '555 Square Wave Generator',
     description: 'Astable multivibrator oscillating with dual threshold/discharge scopes',
-    type: 'file',
-    file: '555square.txt',
+    type: 'code',
+    code: `$ 1 5.0E-6 5.023272298708815 64 7.0 50
+w 272 176 240 176 0
+r 240 176 240 240 0 10000.0
+w 240 240 272 240 0
+w 240 240 240 272 0
+w 240 272 272 272 0
+c 240 272 240 336 0 3.0E-7 6.6394202099608295
+g 240 336 240 352 0
+r 240 176 240 112 0 10000.0
+w 240 112 336 112 0
+R 240 112 176 112 0 0 40.0 10.0 0.0 0.0 0.5
+O 400 208 464 208 0
+165 272 144 288 144 2 10.0
+w 336 112 400 112 0
+w 400 112 400 176 0
+o 5 32 0 35 10.0 0.0015625 0 -1
+o 10 32 0 42 10.0 9.765625E-5 1 -1`,
   },
 ];
 
@@ -224,12 +296,9 @@ function autoRepairNetlist(text) {
 }
 
 function buildUrlForPreset(preset) {
-  if (preset.type === 'file') {
-    return `https://www.falstad.com/circuit/circuitjs.html?startCircuit=${preset.file}`;
-  }
   const code = autoRepairNetlist(preset.code);
   const compressed = LZString.compressToEncodedURIComponent(code);
-  return `https://www.falstad.com/circuit/circuitjs.html?ctz=${compressed}`;
+  return `/circuitjs/circuitjs.html?ctz=${compressed}`;
 }
 
 export default function CircuitSimulator() {
