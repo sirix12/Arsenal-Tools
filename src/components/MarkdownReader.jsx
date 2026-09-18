@@ -78,6 +78,75 @@ function deleteLocalDoc(id) {
   return filtered;
 }
 
+/* Collapse duplicate documents. Duplicates are grouped by keyFn (full content
+   for local docs, title+preview+word count for cloud summaries) and the most
+   recently updated copy wins. */
+function dedupeByKey(docs, keyFn) {
+  const map = new Map();
+  for (const doc of docs) {
+    const key = keyFn(doc);
+    const existing = map.get(key);
+    if (!existing || (doc.updated_at || '') > (existing.updated_at || '')) {
+      map.set(key, doc);
+    }
+  }
+  return Array.from(map.values());
+}
+
+const toDocSummary = (d) => ({
+  id: d.id,
+  title: d.title,
+  preview: (d.content || '').slice(0, 150),
+  word_count: (d.content || '').trim().split(/\s+/).filter(Boolean).length,
+  created_at: d.created_at || '',
+  updated_at: d.updated_at || '',
+});
+
+const localContentKey = (d) => `${d.title || ''}\u0000${d.content || ''}`;
+const summaryKey = (d) => `${d.title || ''}\u0000${d.preview || ''}\u0000${d.word_count}`;
+
+/* Extract block-level HTML (div, svg, canvas, math, iframe) from markdown,
+   respecting nesting depth, so marked leaves them untouched. Only outermost
+   blocks are extracted; nested tags are preserved inside the raw block. */
+function extractBlockHtml(markdown) {
+  const tagRe = /<(\/?)(div|svg|canvas|math|iframe)(?:\s[^>]*)?>/gi;
+  const blocks = [];
+  let output = '';
+  let cursor = 0;
+  let opening = null;
+  let depth = 0;
+  let m;
+
+  while ((m = tagRe.exec(markdown)) !== null) {
+    const isClosing = m[1] === '/';
+    const tag = m[2].toLowerCase();
+
+    if (isClosing) {
+      if (opening && opening.tag === tag) {
+        depth--;
+        if (depth === 0) {
+          const endPos = m.index + m[0].length;
+          const block = markdown.slice(opening.start, endPos);
+          output += markdown.slice(cursor, opening.start);
+          output += `<!--MARKDOWN_RAW_HTML_BLOCK_${blocks.length}-->`;
+          blocks.push(block);
+          cursor = endPos;
+          opening = null;
+        }
+      }
+    } else if (!m[0].endsWith('/>')) {
+      if (opening) {
+        if (tag === opening.tag) depth++;
+      } else {
+        opening = { start: m.index, tag };
+        depth = 1;
+      }
+    }
+  }
+  output += markdown.slice(cursor);
+  return { output, blocks };
+}
+
 function extractTitle(md) {
   const match = md.match(/^#\s+(.+)$/m);
   if (match) return match[1].trim();
@@ -122,14 +191,7 @@ export default function MarkdownReader() {
   // Cloud & local docs state (initialized immediately from local storage)
   const [savedDocs, setSavedDocs] = useState(() => {
     const local = getLocalDocs();
-    return local.map(d => ({
-      id: d.id,
-      title: d.title,
-      preview: (d.content || '').slice(0, 150),
-      word_count: (d.content || '').trim().split(/\s+/).filter(Boolean).length,
-      created_at: d.created_at || '',
-      updated_at: d.updated_at || '',
-    }));
+    return dedupeByKey(local, localContentKey).map(toDocSummary);
   });
   const [currentDocId, setCurrentDocId] = useState(null);
   const [loadingDocs, setLoadingDocs] = useState(false);
@@ -189,13 +251,10 @@ export default function MarkdownReader() {
       window.marked.use({
         hooks: {
           preprocess(markdown) {
-            rawBlocks = [];
             if (!markdown) return markdown;
-            return markdown.replace(/<(svg|canvas|math|iframe)\b[^>]*>[\s\S]*?<\/\1>/gi, (match) => {
-              const id = rawBlocks.length;
-              rawBlocks.push(match);
-              return `<!--MARKDOWN_RAW_HTML_BLOCK_${id}-->`;
-            });
+            const extracted = extractBlockHtml(markdown);
+            rawBlocks = extracted.blocks;
+            return extracted.output;
           },
           postprocess(html) {
             if (!html || rawBlocks.length === 0) return html;
@@ -365,17 +424,12 @@ export default function MarkdownReader() {
   const fetchDocs = useCallback(async (background = false) => {
     if (!background) setLoadingDocs(true);
 
-    // 1. Immediately surface local storage documents
-    const local = getLocalDocs();
+    // 1. Immediately surface local storage documents (deduped)
+    const rawLocal = getLocalDocs();
+    const local = dedupeByKey(rawLocal, localContentKey);
+    if (local.length !== rawLocal.length) saveLocalDocs(local);
     if (local.length > 0) {
-      setSavedDocs(local.map(d => ({
-        id: d.id,
-        title: d.title,
-        preview: (d.content || '').slice(0, 150),
-        word_count: (d.content || '').trim().split(/\s+/).filter(Boolean).length,
-        created_at: d.created_at || '',
-        updated_at: d.updated_at || '',
-      })));
+      setSavedDocs(local.map(toDocSummary));
     }
 
     // 2. Attempt cloud fetch with timeout
@@ -386,23 +440,34 @@ export default function MarkdownReader() {
       clearTimeout(timeoutId);
 
       if (res.ok) {
-        const cloudDocs = await res.json();
-        // Merge cloud with local: cloud docs take precedence if present
+        // Server now dedupes too, but collapse duplicates client-side as defense
+        const cloudDocs = dedupeByKey(await res.json(), summaryKey);
+        // Merge cloud with local: cloud docs take precedence for the same id.
+        // Local copies orphaned by an old save bug (same document but different
+        // generated id, already saved to cloud) are dropped so they stop
+        // appearing as duplicates in the library.
+        const cloudKeyToId = new Map();
+        for (const c of cloudDocs) cloudKeyToId.set(summaryKey(c), c.id);
+
         const mergedMap = new Map();
+        const orphanIds = new Set();
+        const localToKeep = [];
         for (const doc of local) {
-          mergedMap.set(doc.id, {
-            id: doc.id,
-            title: doc.title,
-            preview: (doc.content || '').slice(0, 150),
-            word_count: (doc.content || '').trim().split(/\s+/).filter(Boolean).length,
-            created_at: doc.created_at || '',
-            updated_at: doc.updated_at || '',
-          });
+          const twinId = cloudKeyToId.get(summaryKey(doc));
+          if (twinId && twinId !== doc.id) {
+            orphanIds.add(doc.id);
+            continue;
+          }
+          localToKeep.push(doc);
+          if (!cloudKeyToId.has(doc.id)) {
+            mergedMap.set(doc.id, toDocSummary(doc));
+          }
         }
         for (const doc of cloudDocs) {
           mergedMap.set(doc.id, doc);
         }
-        const merged = Array.from(mergedMap.values());
+        if (orphanIds.size > 0) saveLocalDocs(localToKeep);
+        const merged = dedupeByKey(Array.from(mergedMap.values()), summaryKey);
         merged.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
         setSavedDocs(merged);
       }
@@ -410,7 +475,6 @@ export default function MarkdownReader() {
       console.error('Error fetching docs:', err);
       if (!background) showToast('Failed to load documents', 'error');
       console.warn('Cloud storage unreachable, running offline mode:', err.message);
-      // Only toast if user had no local docs and requested explicit load
       if (local.length === 0 && !background) {
         showToast('Running in local offline mode', 'info');
       }
@@ -470,7 +534,7 @@ export default function MarkdownReader() {
         res = await fetch(`${API_URL}/api/docs`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, content: mdText }),
+          body: JSON.stringify({ id: docId, title, content: mdText }),
           signal: controller.signal,
         });
       }
@@ -478,37 +542,34 @@ export default function MarkdownReader() {
 
       if (!res.ok) throw new Error('Failed to save document');
       const saved = await res.json();
-      setCurrentDocId(saved.id);
 
-      // Immediately update local cache so library view is instantly fresh
+      // The server should reuse the client-supplied id. If it ever returns a
+      // different one, migrate the local copy so no orphaned duplicate lingers.
+      const finalId = saved.id || docId;
+      if (finalId !== docId) {
+        deleteLocalDoc(docId);
+        putLocalDoc({ ...docObj, id: finalId, created_at: saved.created_at || docObj.created_at });
+      }
+
+      setCurrentDocId(finalId);
+
+      // Immediately update local cache and library state so the list is fresh
       const docSummary = {
-        id: saved.id,
+        id: finalId,
         title: saved.title || title,
         preview: (saved.content || mdText).slice(0, 150),
         word_count: (saved.content || mdText).trim().split(/\s+/).filter(Boolean).length,
-        created_at: saved.created_at || new Date().toISOString(),
-        updated_at: saved.updated_at || new Date().toISOString(),
+        created_at: saved.created_at || docObj.created_at,
+        updated_at: saved.updated_at || now,
       };
       setSavedDocs(prev => {
-        const filtered = prev.filter(d => d.id !== saved.id);
+        const filtered = prev.filter(d => d.id !== finalId && d.id !== docId);
         return [docSummary, ...filtered];
       });
 
       showToast(asNew || !currentDocId ? 'Document saved to cloud!' : 'Document updated!');
-      if (res.ok) {
-        const saved = await res.json();
-        if (saved.id && saved.id !== docId) {
-          deleteLocalDoc(docId);
-          putLocalDoc({ ...docObj, id: saved.id });
-          setCurrentDocId(saved.id);
-        }
-        showToast(asNew || !currentDocId ? 'Document saved!' : 'Document updated!');
-      } else {
-        showToast('Document saved locally');
-      }
     } catch (err) {
       console.error('Error saving doc:', err);
-      showToast('Failed to save document', 'error');
       console.warn('Cloud sync offline, saved locally:', err.message);
       showToast('Document saved locally');
     } finally {
@@ -607,7 +668,7 @@ export default function MarkdownReader() {
     fetchDocs(savedDocs.length > 0);
   }, [fetchDocs, savedDocs.length]);
 
-  const filteredDocs = savedDocs.filter(d =>
+  const filteredDocs = dedupeByKey(savedDocs, summaryKey).filter(d =>
     d.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

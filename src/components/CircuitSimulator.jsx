@@ -317,10 +317,13 @@ export default function CircuitSimulator() {
     const repairedCode = autoRepairNetlist(customCode.trim());
     const compressed = LZString.compressToEncodedURIComponent(repairedCode);
     setSimUrl(`/circuitjs/circuitjs.html?ctz=${compressed}`);
+    setSelectedPreset('custom');
     setIframeKey((k) => k + 1);
     setShowCodeModal(false);
+    setIframeKey((k) => k + 1);
   };
 
+  // Toggle Fullscreen
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {

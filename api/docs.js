@@ -22,7 +22,24 @@ async function readDocs() {
 
   const data = await res.json();
   const raw = data.files?.[GIST_FILE]?.content || '[]';
-  return JSON.parse(raw);
+  const docs = JSON.parse(raw);
+
+  // Collapse duplicate documents created by an old client bug (same title +
+  // content saved under different ids). Keep the most recently updated copy
+  // and persist the cleanup once so the gist stays clean.
+  const seen = new Map();
+  for (const doc of Array.isArray(docs) ? docs : []) {
+    const key = `${doc.title || ''}\u0000${doc.content || ''}`;
+    const existing = seen.get(key);
+    if (!existing || (doc.updated_at || '') > (existing.updated_at || '')) {
+      seen.set(key, doc);
+    }
+  }
+  const unique = Array.from(seen.values());
+  if (unique.length !== (Array.isArray(docs) ? docs.length : 0)) {
+    await writeDocs(unique).catch((e) => console.error('Failed to persist doc dedupe:', e));
+  }
+  return unique;
 }
 
 async function writeDocs(docs) {
@@ -131,8 +148,23 @@ export default async function handler(req, res) {
       const title = body?.title || 'Untitled';
       const content = body?.content || '';
       const now = new Date().toISOString();
+
+      // Reuse the client-supplied id when present so saves are idempotent and
+      // no duplicate document is created on retries.
+      const providedId = typeof body?.id === 'string' && body.id ? body.id : null;
+      if (providedId) {
+        const existingIndex = docs.findIndex(d => d.id === providedId);
+        if (existingIndex !== -1) {
+          if (body?.title !== undefined) docs[existingIndex].title = body.title;
+          if (body?.content !== undefined) docs[existingIndex].content = body.content;
+          docs[existingIndex].updated_at = now;
+          await writeDocs(docs);
+          return res.status(200).json(docs[existingIndex]);
+        }
+      }
+
       const newDoc = {
-        id: crypto.randomUUID(),
+        id: providedId || crypto.randomUUID(),
         title,
         content,
         created_at: now,
