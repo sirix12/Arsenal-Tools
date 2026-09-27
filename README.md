@@ -95,10 +95,18 @@ npm run preview
 
 ### Saved-Document Storage
 
-Saved Markdown documents are managed via a high-performance Vercel Serverless Function (`/api/docs`) backed by GitHub Gist storage with offline-first client caching (`localStorage`):
-- **Instant (0ms) Access**: Documents are cached in the browser for zero-latency loading.
-- **Automatic Cloud Sync**: Background synchronization to GitHub Gist ensures safe persistence across devices.
-- **Server-Side Credentials**: GitHub tokens are managed securely in Vercel environment variables (`GITHUB_TOKEN`, `GIST_ID`).
+Saved Markdown documents are managed via Vercel Serverless Functions backed by **Neon Postgres** (metadata + folders) and **S3-compatible object storage** (Markdown content):
+- **Folders**: Documents live in module folders (e.g. `EC3301: Analog Electronics · P4`). Save new documents into an existing folder or create a new folder inline from the save dialog.
+- **API**: `/api/docs` (document CRUD) and `/api/folders` (folder CRUD). Configure credentials in your Vercel project environment variables (never commit them):
+```text
+DATABASE_URL=<neon postgres connection string>
+AWS_ENDPOINT_URL_S3=<s3-compatible endpoint>
+AWS_ACCESS_KEY_ID=<storage key id>
+AWS_SECRET_ACCESS_KEY=<server-only secret>
+AWS_REGION=<e.g. us-east-2>
+S3_BUCKET=<bucket for markdown content, e.g. md-reader-docs>
+```
+- **Migration**: one-time import of the legacy Gist store is available via `node scripts/migrate-gist-to-neon.mjs` with the same env vars set.
 
 ### Quiz Streaming & Conversion
 

@@ -21,7 +21,7 @@ function loadLive2D() {
     window.L2Dwidget.init({
       model: {
         jsonPath:
-          'https://cdn.jsdelivr.net/gh/evrstr/live2d-widget-models/live2d_evrstr/mai/model.json',
+          'https://cdn.jsdelivr.net/gh/evrstr/live2d-widget-models/live2d_evrstr/welrod_1401/model.json',
       },
       display: { position: 'right', width: 85, height: 200, hOffset: 20, vOffset: 20 },
       mobile: { show: true, scale: 0.3, motion: true },

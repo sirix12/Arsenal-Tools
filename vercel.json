@@ -5,10 +5,14 @@
     },
     "api/docs.js": {
       "maxDuration": 15
+    },
+    "api/folders.js": {
+      "maxDuration": 15
     }
   },
   "rewrites": [
     { "source": "/api/docs/:id", "destination": "/api/docs?id=:id" },
+    { "source": "/api/folders/:id", "destination": "/api/folders?id=:id" },
     { "source": "/((?!api/).*)", "destination": "/" }
   ]
 }

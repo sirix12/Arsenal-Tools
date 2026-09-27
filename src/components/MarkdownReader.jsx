@@ -38,72 +38,6 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 /* ------------------------------------------------------------------
    Helpers
    ------------------------------------------------------------------- */
-const LOCAL_STORAGE_KEY = 'arsenal_saved_docs';
-
-function getLocalDocs() {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    console.error('Error reading localStorage docs:', e);
-    return [];
-  }
-}
-
-function saveLocalDocs(docs) {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(docs));
-  } catch (e) {
-    console.error('Error saving localStorage docs:', e);
-  }
-}
-
-function getLocalDoc(id) {
-  const docs = getLocalDocs();
-  return docs.find(d => d.id === id);
-}
-
-function putLocalDoc(doc) {
-  const docs = getLocalDocs();
-  const filtered = docs.filter(d => d.id !== doc.id);
-  const updated = [doc, ...filtered];
-  saveLocalDocs(updated);
-  return updated;
-}
-
-function deleteLocalDoc(id) {
-  const docs = getLocalDocs();
-  const filtered = docs.filter(d => d.id !== id);
-  saveLocalDocs(filtered);
-  return filtered;
-}
-
-/* Collapse duplicate documents. Duplicates are grouped by keyFn (full content
-   for local docs, title+preview+word count for cloud summaries) and the most
-   recently updated copy wins. */
-function dedupeByKey(docs, keyFn) {
-  const map = new Map();
-  for (const doc of docs) {
-    const key = keyFn(doc);
-    const existing = map.get(key);
-    if (!existing || (doc.updated_at || '') > (existing.updated_at || '')) {
-      map.set(key, doc);
-    }
-  }
-  return Array.from(map.values());
-}
-
-const toDocSummary = (d) => ({
-  id: d.id,
-  title: d.title,
-  preview: (d.content || '').slice(0, 150),
-  word_count: (d.content || '').trim().split(/\s+/).filter(Boolean).length,
-  created_at: d.created_at || '',
-  updated_at: d.updated_at || '',
-});
-
-const localContentKey = (d) => `${d.title || ''}\u0000${d.content || ''}`;
-const summaryKey = (d) => `${d.title || ''}\u0000${d.preview || ''}\u0000${d.word_count}`;
 
 /* Extract block-level HTML (div, svg, canvas, math, iframe) from markdown,
    respecting nesting depth, so marked leaves them untouched. Only outermost
@@ -154,6 +88,19 @@ function extractTitle(md) {
   return `Untitled Document — ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }
 
+/* Title detected only when the document *starts* with a valid H1 heading
+   (leading blank lines ignored). Returns null otherwise, so updates never
+   overwrite a good stored title with a fallback. */
+function extractTitleAtStart(md) {
+  for (const line of (md || '').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const match = trimmed.match(/^#\s+(.+)$/);
+    return match ? match[1].trim() : null;
+  }
+  return null;
+}
+
 function stripMd(text) {
   return text
     .replace(/^#{1,6}\s+/gm, '')
@@ -175,6 +122,11 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString();
 }
 
+function folderLabel(folder) {
+  if (!folder) return 'Unfiled';
+  return `${folder.code ? folder.code + ': ' : ''}${folder.name}`;
+}
+
 /* ------------------------------------------------------------------
    Component
    ------------------------------------------------------------------- */
@@ -188,15 +140,19 @@ export default function MarkdownReader() {
   const [fullWidth, setFullWidth] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
-  // Cloud & local docs state (initialized immediately from local storage)
-  const [savedDocs, setSavedDocs] = useState(() => {
-    const local = getLocalDocs();
-    return dedupeByKey(local, localContentKey).map(toDocSummary);
-  });
+  // Library state (Neon Postgres + S3 object storage backend)
+  const [folders, setFolders] = useState([]);
+  const [savedDocs, setSavedDocs] = useState([]);
   const [currentDocId, setCurrentDocId] = useState(null);
+  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [selectedFolder, setSelectedFolder] = useState('all'); // 'all' | folderId | 'unfiled'
   const [loadingDocs, setLoadingDocs] = useState(false);
-  const [savingDoc, setSavingDoc] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Save dialog state — pick an existing folder or create a new one on save
+  const [saveDialog, setSaveDialog] = useState(null); // { folderId: string|'\0new', newFolderName: string, saving: bool }
+  // Folder management dialog: create | rename | delete
+  const [folderDialog, setFolderDialog] = useState(null); // { mode, folder?, name }
 
   // Toast state
   const [toast, setToast] = useState(null); // { message, type: 'success'|'error' }
@@ -204,9 +160,6 @@ export default function MarkdownReader() {
 
   // Delete confirmation state
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { docId, docTitle }
-
-  // Save choice state (save as new vs update)
-  const [saveChoice, setSaveChoice] = useState(false);
 
   const readerRef = useRef(null);
   const progressRef = useRef(null);
@@ -316,6 +269,7 @@ export default function MarkdownReader() {
     reader.onload = (ev) => {
       setMdText(ev.target.result);
       setCurrentDocId(null); // new file, not from library
+      setCurrentFolderId(null);
     };
     reader.readAsText(file);
   };
@@ -418,209 +372,131 @@ export default function MarkdownReader() {
   };
 
   /* ----------------------------------------------------------------
-     Cloud document operations
-     Document operations (Offline-first Local Storage + Cloud Sync)
+     Library operations (Neon Postgres metadata + S3 content storage)
   ---------------------------------------------------------------- */
-  const fetchDocs = useCallback(async (background = false) => {
+  const fetchLibrary = useCallback(async (background = false) => {
     if (!background) setLoadingDocs(true);
-
-    // 1. Immediately surface local storage documents (deduped)
-    const rawLocal = getLocalDocs();
-    const local = dedupeByKey(rawLocal, localContentKey);
-    if (local.length !== rawLocal.length) saveLocalDocs(local);
-    if (local.length > 0) {
-      setSavedDocs(local.map(toDocSummary));
-    }
-
-    // 2. Attempt cloud fetch with timeout
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
-      const res = await fetch(`${API_URL}/api/docs`, { signal: controller.signal });
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const [foldersRes, docsRes] = await Promise.all([
+        fetch(`${API_URL}/api/folders`, { signal: controller.signal }),
+        fetch(`${API_URL}/api/docs`, { signal: controller.signal }),
+      ]);
       clearTimeout(timeoutId);
-
-      if (res.ok) {
-        // Server now dedupes too, but collapse duplicates client-side as defense
-        const cloudDocs = dedupeByKey(await res.json(), summaryKey);
-        // Merge cloud with local: cloud docs take precedence for the same id.
-        // Local copies orphaned by an old save bug (same document but different
-        // generated id, already saved to cloud) are dropped so they stop
-        // appearing as duplicates in the library.
-        const cloudKeyToId = new Map();
-        for (const c of cloudDocs) cloudKeyToId.set(summaryKey(c), c.id);
-
-        const mergedMap = new Map();
-        const orphanIds = new Set();
-        const localToKeep = [];
-        for (const doc of local) {
-          const twinId = cloudKeyToId.get(summaryKey(doc));
-          if (twinId && twinId !== doc.id) {
-            orphanIds.add(doc.id);
-            continue;
-          }
-          localToKeep.push(doc);
-          if (!cloudKeyToId.has(doc.id)) {
-            mergedMap.set(doc.id, toDocSummary(doc));
-          }
-        }
-        for (const doc of cloudDocs) {
-          mergedMap.set(doc.id, doc);
-        }
-        if (orphanIds.size > 0) saveLocalDocs(localToKeep);
-        const merged = dedupeByKey(Array.from(mergedMap.values()), summaryKey);
-        merged.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
-        setSavedDocs(merged);
-      }
+      if (!foldersRes.ok || !docsRes.ok) throw new Error('Failed to load library');
+      setFolders(await foldersRes.json());
+      setSavedDocs(await docsRes.json());
     } catch (err) {
-      console.error('Error fetching docs:', err);
+      console.error('Error fetching library:', err);
       if (!background) showToast('Failed to load documents', 'error');
-      console.warn('Cloud storage unreachable, running offline mode:', err.message);
-      if (local.length === 0 && !background) {
-        showToast('Running in local offline mode', 'info');
-      }
     } finally {
       if (!background) setLoadingDocs(false);
     }
   }, [showToast]);
 
-  const saveDocToCloud = useCallback(async (asNew = true) => {
-    if (!mdText.trim()) return;
-    setSavingDoc(true);
-    setSaveChoice(false);
+  const openLibrary = useCallback(() => {
+    setView('library');
+    setSearchQuery('');
+    fetchLibrary(savedDocs.length > 0 || folders.length > 0);
+  }, [fetchLibrary, savedDocs.length, folders.length]);
 
-    const title = extractTitle(mdText);
-    const now = new Date().toISOString();
-    const docId = (!asNew && currentDocId) ? currentDocId : (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+  /* Resolve the save-dialog folder choice into API fields */
+  const resolveFolderChoice = (dialog) => {
+    if (dialog.folderId === '__new__') {
+      const name = (dialog.newFolderName || '').trim();
+      if (!name) return { error: 'Please enter a name for the new folder.' };
+      return { new_folder_name: name };
+    }
+    return { folder_id: dialog.folderId === 'unfiled' ? null : dialog.folderId };
+  };
 
-    const existingLocal = getLocalDoc(docId);
-    const docObj = {
-      id: docId,
-      title,
-      content: mdText,
-      created_at: (!asNew && existingLocal) ? (existingLocal.created_at || now) : now,
-      updated_at: now,
-    };
+  const saveDocToCloud = useCallback(async (asNew) => {
+    if (!mdText.trim() || !saveDialog || saveDialog.saving) return;
+    const choice = resolveFolderChoice(saveDialog);
+    if (choice.error) {
+      showToast(choice.error, 'error');
+      return;
+    }
+    setSaveDialog(d => ({ ...d, saving: true }));
 
-    // 1. Immediately persist locally so document is NEVER lost
-    putLocalDoc(docObj);
-    setCurrentDocId(docId);
-
-    const docSummary = {
-      id: docId,
-      title,
-      preview: mdText.slice(0, 150),
-      word_count: mdText.trim().split(/\s+/).filter(Boolean).length,
-      created_at: docObj.created_at,
-      updated_at: now,
-    };
-    setSavedDocs(prev => [docSummary, ...prev.filter(d => d.id !== docId)]);
-
-    // 2. Attempt cloud save with timeout
+    const isUpdate = !asNew && currentDocId;
+    // On update, retitle only when the document starts with a valid H1;
+    // otherwise the stored title is left untouched. New documents fall back
+    // to the first H1 anywhere, then to a dated "Untitled" title.
+    const leadingTitle = extractTitleAtStart(mdText);
+    const title = isUpdate ? leadingTitle : (leadingTitle || extractTitle(mdText));
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-
       let res;
-      if (!asNew && currentDocId) {
-        // Update existing
+      if (isUpdate) {
         res = await fetch(`${API_URL}/api/docs/${currentDocId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, content: mdText }),
-          signal: controller.signal,
+          body: JSON.stringify({
+            content: mdText,
+            ...choice,
+            ...(leadingTitle ? { title: leadingTitle } : {}),
+          }),
         });
       } else {
-        // Create new
+        const docId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
         res = await fetch(`${API_URL}/api/docs`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: docId, title, content: mdText }),
-          signal: controller.signal,
+          body: JSON.stringify({ id: docId, title, content: mdText, ...choice }),
         });
       }
-      clearTimeout(timeoutId);
-
-      if (!res.ok) throw new Error('Failed to save document');
-      const saved = await res.json();
-
-      // The server should reuse the client-supplied id. If it ever returns a
-      // different one, migrate the local copy so no orphaned duplicate lingers.
-      const finalId = saved.id || docId;
-      if (finalId !== docId) {
-        deleteLocalDoc(docId);
-        putLocalDoc({ ...docObj, id: finalId, created_at: saved.created_at || docObj.created_at });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || 'Failed to save document');
       }
-
-      setCurrentDocId(finalId);
-
-      // Immediately update local cache and library state so the list is fresh
-      const docSummary = {
-        id: finalId,
-        title: saved.title || title,
-        preview: (saved.content || mdText).slice(0, 150),
-        word_count: (saved.content || mdText).trim().split(/\s+/).filter(Boolean).length,
-        created_at: saved.created_at || docObj.created_at,
-        updated_at: saved.updated_at || now,
-      };
-      setSavedDocs(prev => {
-        const filtered = prev.filter(d => d.id !== finalId && d.id !== docId);
-        return [docSummary, ...filtered];
-      });
-
-      showToast(asNew || !currentDocId ? 'Document saved to cloud!' : 'Document updated!');
+      const saved = await res.json();
+      setCurrentDocId(saved.id);
+      setCurrentFolderId(saved.folder_id || null);
+      setSaveDialog(null);
+      showToast(asNew || !currentDocId ? 'Document saved!' : 'Document updated!');
+      fetchLibrary(true); // refresh counts / new folders in background
     } catch (err) {
       console.error('Error saving doc:', err);
-      console.warn('Cloud sync offline, saved locally:', err.message);
-      showToast('Document saved locally');
-    } finally {
-      setSavingDoc(false);
+      showToast(err.message || 'Failed to save document', 'error');
+      setSaveDialog(d => (d ? { ...d, saving: false } : d));
     }
-  }, [mdText, currentDocId, showToast]);
+  }, [mdText, saveDialog, currentDocId, showToast, fetchLibrary]);
 
-  const handleCloudSave = useCallback(() => {
+  const openSaveDialog = useCallback(() => {
     if (!mdText.trim()) return;
-    if (currentDocId) {
-      // Show save choice: update vs save as new
-      setSaveChoice(true);
+    const open = () => setSaveDialog({
+      folderId: currentFolderId || 'unfiled',
+      newFolderName: '',
+      saving: false,
+    });
+    if (folders.length === 0) {
+      // Folders not loaded yet (library never opened) — fetch first so the
+      // dialog lists existing folders instead of only "Create new folder".
+      fetchLibrary(true).finally(open);
     } else {
-      saveDocToCloud(true);
+      open();
     }
-  }, [mdText, currentDocId, saveDocToCloud]);
+  }, [mdText, currentFolderId, folders.length, fetchLibrary]);
+
+  /* Preload folders/docs in the background so the save dialog and library
+     are instant even if the library view was never opened. */
+  useEffect(() => {
+    fetchLibrary(true);
+  }, [fetchLibrary]);
 
   const loadDocFromCloud = useCallback(async (docId) => {
-    // 1. Check local storage first
-    const local = getLocalDoc(docId);
-    if (local && local.content) {
-      setMdText(local.content);
-      setCurrentDocId(local.id);
-
-      if (ready && local.content.trim()) {
-        const html = window.marked.parse(local.content);
-        setRenderedHtml(html);
-        calcStats(local.content);
-        setView('reader');
-        window.scrollTo(0, 0);
-      } else {
-        setView('input');
-      }
-      showToast(`Loaded "${local.title}"`);
-      return;
-    }
-
-    // 2. Fetch from cloud if not available locally
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       const res = await fetch(`${API_URL}/api/docs/${docId}`, { signal: controller.signal });
       clearTimeout(timeoutId);
-
       if (!res.ok) throw new Error('Failed to load document');
       const doc = await res.json();
-      putLocalDoc(doc); // Cache locally
       setMdText(doc.content);
       setCurrentDocId(doc.id);
+      setCurrentFolderId(doc.folder_id || null);
 
-      // Render and go directly to reader view
       if (ready && doc.content.trim()) {
         const html = window.marked.parse(doc.content);
         setRenderedHtml(html);
@@ -639,38 +515,73 @@ export default function MarkdownReader() {
 
   const deleteDocFromCloud = useCallback(async (docId) => {
     setDeleteConfirm(null);
-    deleteLocalDoc(docId);
+    // Optimistic removal
     setSavedDocs(prev => prev.filter(d => d.id !== docId));
-    if (currentDocId === docId) setCurrentDocId(null);
-    showToast('Document deleted');
-
+    if (currentDocId === docId) {
+      setCurrentDocId(null);
+      setCurrentFolderId(null);
+    }
     try {
       const res = await fetch(`${API_URL}/api/docs/${docId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
-      setSavedDocs(prev => prev.filter(d => d.id !== docId));
-      if (currentDocId === docId) setCurrentDocId(null);
       showToast('Document deleted');
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-      await fetch(`${API_URL}/api/docs/${docId}`, { method: 'DELETE', signal: controller.signal });
-      clearTimeout(timeoutId);
+      fetchLibrary(true);
     } catch (err) {
       console.error('Error deleting doc:', err);
       showToast('Failed to delete document', 'error');
-      console.warn('Cloud delete offline (local copy deleted):', err.message);
+      fetchLibrary(true); // restore consistent state
     }
-  }, [currentDocId, showToast]);
+  }, [currentDocId, showToast, fetchLibrary]);
 
-  const openLibrary = useCallback(() => {
-    setView('library');
-    setSearchQuery('');
-    // Use stale-while-revalidate: if documents are already in state, refresh in background without blanking UI
-    fetchDocs(savedDocs.length > 0);
-  }, [fetchDocs, savedDocs.length]);
+  /* ---------- Folder CRUD ---------- */
+  const submitFolderDialog = useCallback(async () => {
+    if (!folderDialog) return;
+    const { mode, folder, name } = folderDialog;
+    const trimmed = (name || '').trim();
+    if (mode !== 'delete' && !trimmed) {
+      showToast('Folder name is required', 'error');
+      return;
+    }
+    try {
+      let res;
+      if (mode === 'create') {
+        res = await fetch(`${API_URL}/api/folders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: trimmed }),
+        });
+      } else if (mode === 'rename') {
+        res = await fetch(`${API_URL}/api/folders/${folder.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: trimmed }),
+        });
+      } else {
+        res = await fetch(`${API_URL}/api/folders/${folder.id}`, { method: 'DELETE' });
+      }
+      if (!res.ok) throw new Error('Folder operation failed');
+      const result = mode === 'delete' ? null : await res.json();
+      setFolderDialog(null);
+      showToast(mode === 'delete' ? 'Folder deleted (documents kept as Unfiled)' : `Folder ${mode === 'create' ? 'created' : 'renamed'}!`);
+      await fetchLibrary(true);
+      // If we just created a folder from the library, select it; if created
+      // mid-save the save dialog stays open and the caller refreshes its list.
+      if (mode === 'create' && result && !saveDialog) setSelectedFolder(result.id);
+    } catch (err) {
+      console.error('Folder operation failed:', err);
+      showToast('Folder operation failed', 'error');
+    }
+  }, [folderDialog, showToast, fetchLibrary, saveDialog]);
 
-  const filteredDocs = dedupeByKey(savedDocs, summaryKey).filter(d =>
-    d.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const folderMap = new Map(folders.map(f => [f.id, f]));
+  const unfiledCount = savedDocs.filter(d => !d.folder_id).length;
+
+  const filteredDocs = savedDocs.filter(d => {
+    if (selectedFolder === 'unfiled' && d.folder_id) return false;
+    if (selectedFolder !== 'all' && selectedFolder !== 'unfiled' && d.folder_id !== selectedFolder) return false;
+    if (searchQuery && !d.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
 
   /* ----------------------------------------------------------------
      Render
@@ -704,22 +615,16 @@ export default function MarkdownReader() {
               </button>
               <button
                 className="btn btn-ghost cloud-save-btn"
-                onClick={handleCloudSave}
-                disabled={!mdText.trim() || savingDoc}
-                title="Save to cloud"
+                onClick={openSaveDialog}
+                disabled={!mdText.trim()}
+                title="Save to library"
               >
-                {savingDoc ? (
-                  <><span className="spinner" /> Saving…</>
-                ) : (
-                  <>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z" />
-                      <polyline points="12 13 12 17" />
-                      <polyline points="10 15 12 17 14 15" />
-                    </svg>
-                    {currentDocId ? 'Update' : 'Save'}
-                  </>
-                )}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z" />
+                  <polyline points="12 13 12 17" />
+                  <polyline points="10 15 12 17 14 15" />
+                </svg>
+                {currentDocId ? 'Update' : 'Save'}
               </button>
               <label className="btn btn-ghost upload-label">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -762,25 +667,6 @@ export default function MarkdownReader() {
               </>
             )}
           </button>
-
-          {/* Save choice popup */}
-          {saveChoice && (
-            <div className="save-choice-overlay" onClick={() => setSaveChoice(false)}>
-              <div className="save-choice-popup glass" onClick={e => e.stopPropagation()}>
-                <p className="save-choice-title">How would you like to save?</p>
-                <div className="save-choice-actions">
-                  <button className="btn btn-ghost" onClick={() => { saveDocToCloud(false); }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /></svg>
-                    Update Existing
-                  </button>
-                  <button className="btn btn-primary" onClick={() => { saveDocToCloud(true); }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    Save as New
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -811,22 +697,15 @@ export default function MarkdownReader() {
               </button>
               <button
                 className="btn btn-ghost cloud-save-btn"
-                onClick={handleCloudSave}
-                disabled={savingDoc}
-                title="Save to cloud"
+                onClick={openSaveDialog}
+                title="Save to library"
               >
-                {savingDoc ? (
-                  <><span className="spinner" style={{ marginRight: '6px' }} /> Saving…</>
-                ) : (
-                  <>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z" />
-                      <polyline points="12 13 12 17" />
-                      <polyline points="10 15 12 17 14 15" />
-                    </svg>
-                    {currentDocId ? 'Update' : 'Save'}
-                  </>
-                )}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z" />
+                  <polyline points="12 13 12 17" />
+                  <polyline points="10 15 12 17 14 15" />
+                </svg>
+                {currentDocId ? 'Update' : 'Save'}
               </button>
               <button className="btn btn-ghost" onClick={handleSave} title="Save as .md">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -871,25 +750,6 @@ export default function MarkdownReader() {
 
           {/* Rendered content */}
           <article className="md-content markdown-body" ref={readerRef} />
-
-          {/* Save choice popup (also available in reader view) */}
-          {saveChoice && (
-            <div className="save-choice-overlay" onClick={() => setSaveChoice(false)}>
-              <div className="save-choice-popup glass" onClick={e => e.stopPropagation()}>
-                <p className="save-choice-title">How would you like to save?</p>
-                <div className="save-choice-actions">
-                  <button className="btn btn-ghost" onClick={() => { saveDocToCloud(false); }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /></svg>
-                    Update Existing
-                  </button>
-                  <button className="btn btn-primary" onClick={() => { saveDocToCloud(true); }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    Save as New
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -913,6 +773,10 @@ export default function MarkdownReader() {
                 My Documents
                 <span className="doc-count">{savedDocs.length}</span>
               </h2>
+              <button className="btn btn-ghost" onClick={() => setFolderDialog({ mode: 'create', name: '' })}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></svg>
+                New Folder
+              </button>
             </div>
             <div className="library-search-wrap">
               <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -929,60 +793,202 @@ export default function MarkdownReader() {
             </div>
           </div>
 
-          {loadingDocs ? (
-            <div className="library-grid">
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <div key={i} className="doc-card glass skeleton-card">
-                  <div className="skeleton-line skeleton-title" />
-                  <div className="skeleton-line skeleton-preview" />
-                  <div className="skeleton-line skeleton-meta" />
+          <div className="library-layout">
+            {/* Folder sidebar */}
+            <aside className="folder-sidebar glass">
+              <button
+                className={`folder-item ${selectedFolder === 'all' ? 'active' : ''}`}
+                onClick={() => setSelectedFolder('all')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                <span className="folder-item-name">All Documents</span>
+                <span className="folder-count">{savedDocs.length}</span>
+              </button>
+              {folders.map(folder => (
+                <div key={folder.id} className={`folder-item-row ${selectedFolder === folder.id ? 'active' : ''}`}>
+                  <button className="folder-item" onClick={() => setSelectedFolder(folder.id)} title={folderLabel(folder)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                    <span className="folder-item-name">
+                      {folder.code && <span className="folder-code">{folder.code}</span>}
+                      <span className="folder-name-text">{folder.name}</span>
+                      {folder.period && <span className="folder-period">{folder.period}</span>}
+                    </span>
+                    <span className="folder-count">{folder.doc_count}</span>
+                  </button>
+                  <span className="folder-item-tools">
+                    <button className="icon-btn" title="Rename folder" onClick={() => setFolderDialog({ mode: 'rename', folder, name: folder.name })}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" /></svg>
+                    </button>
+                    <button className="icon-btn danger" title="Delete folder" onClick={() => setFolderDialog({ mode: 'delete', folder })}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                    </button>
+                  </span>
                 </div>
               ))}
+              {unfiledCount > 0 && (
+                <button
+                  className={`folder-item ${selectedFolder === 'unfiled' ? 'active' : ''}`}
+                  onClick={() => setSelectedFolder('unfiled')}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                  <span className="folder-item-name">Unfiled</span>
+                  <span className="folder-count">{unfiledCount}</span>
+                </button>
+              )}
+            </aside>
+
+            {/* Document grid */}
+            <div className="library-main">
+              {loadingDocs ? (
+                <div className="library-grid">
+                  {[1, 2, 3, 4, 5, 6].map(i => (
+                    <div key={i} className="doc-card glass skeleton-card">
+                      <div className="skeleton-line skeleton-title" />
+                      <div className="skeleton-line skeleton-preview" />
+                      <div className="skeleton-line skeleton-meta" />
+                    </div>
+                  ))}
+                </div>
+              ) : filteredDocs.length === 0 ? (
+                <div className="library-empty">
+                  <div className="empty-icon">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                  </div>
+                  <h3>{searchQuery ? 'No matching documents' : 'No documents in this folder yet'}</h3>
+                  <p>{searchQuery ? 'Try a different search term' : 'Write some Markdown and save it into this folder!'}</p>
+                  {!searchQuery && (
+                    <button className="btn btn-primary" onClick={() => setView('input')}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                      Create Document
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="library-grid">
+                  {filteredDocs.map(doc => {
+                    const folder = doc.folder_id ? folderMap.get(doc.folder_id) : null;
+                    return (
+                      <div key={doc.id} className="doc-card glass">
+                        <div className="doc-card-body" onClick={() => loadDocFromCloud(doc.id)}>
+                          <span className="doc-folder-badge">{folder ? folderLabel(folder) : 'Unfiled'}</span>
+                          <h3 className="doc-card-title">{doc.title}</h3>
+                          <p className="doc-card-preview">{stripMd(doc.preview || '')}</p>
+                          <div className="doc-card-meta">
+                            <span className="doc-card-words">{doc.word_count} words</span>
+                            <span className="doc-card-sep">·</span>
+                            <span className="doc-card-date">{timeAgo(doc.updated_at)}</span>
+                          </div>
+                        </div>
+                        <div className="doc-card-actions">
+                          <button className="btn btn-ghost doc-open-btn" onClick={() => loadDocFromCloud(doc.id)}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                            Open
+                          </button>
+                          <button className="btn btn-ghost doc-delete-btn" onClick={() => setDeleteConfirm({ docId: doc.id, docTitle: doc.title })}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          ) : filteredDocs.length === 0 ? (
-            <div className="library-empty">
-              <div className="empty-icon">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                </svg>
-              </div>
-              <h3>{searchQuery ? 'No matching documents' : 'No saved documents yet'}</h3>
-              <p>{searchQuery ? 'Try a different search term' : 'Write some Markdown and save it to the cloud!'}</p>
-              {!searchQuery && (
-                <button className="btn btn-primary" onClick={() => setView('input')}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                  Create Document
+          </div>
+        </div>
+      )}
+
+      {/* ---- SAVE DIALOG (choose existing folder or create new) ---- */}
+      {saveDialog && (
+        <div className="confirm-overlay" onClick={() => !saveDialog.saving && setSaveDialog(null)}>
+          <div className="save-dialog glass" onClick={e => e.stopPropagation()}>
+            <h3>{currentDocId ? 'Save document' : 'Save new document'}</h3>
+            <p className="save-dialog-sub">Choose a folder for this document.</p>
+            <label className="save-dialog-label">Folder</label>
+            <select
+              className="save-dialog-select"
+              value={saveDialog.folderId}
+              disabled={saveDialog.saving}
+              onChange={(e) => setSaveDialog(d => ({ ...d, folderId: e.target.value, newFolderName: '' }))}
+            >
+              <option value="unfiled">Unfiled</option>
+              {folders.map(f => (
+                <option key={f.id} value={f.id}>{folderLabel(f)}</option>
+              ))}
+              <option value="__new__">＋ Create new folder…</option>
+            </select>
+            {saveDialog.folderId === '__new__' && (
+              <>
+                <label className="save-dialog-label">New folder name</label>
+                <input
+                  className="save-dialog-input"
+                  type="text"
+                  placeholder="e.g. EC3301: Analog Electronics"
+                  value={saveDialog.newFolderName}
+                  disabled={saveDialog.saving}
+                  onChange={(e) => setSaveDialog(d => ({ ...d, newFolderName: e.target.value }))}
+                />
+              </>
+            )}
+            <div className="confirm-actions save-dialog-actions">
+              <button className="btn btn-ghost" disabled={saveDialog.saving} onClick={() => setSaveDialog(null)}>Cancel</button>
+              {currentDocId && (
+                <button className="btn btn-ghost" disabled={saveDialog.saving} onClick={() => saveDocToCloud(false)}>
+                  {saveDialog.saving ? <><span className="spinner" /> Saving…</> : 'Update Existing'}
+                </button>
+              )}
+              <button className="btn btn-primary" disabled={saveDialog.saving} onClick={() => saveDocToCloud(true)}>
+                {saveDialog.saving ? <><span className="spinner" /> Saving…</> : (currentDocId ? 'Save as New' : 'Save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---- FOLDER DIALOG (create / rename / delete) ---- */}
+      {folderDialog && (
+        <div className="confirm-overlay" onClick={() => setFolderDialog(null)}>
+          <div className="save-dialog glass" onClick={e => e.stopPropagation()}>
+            <h3>
+              {folderDialog.mode === 'create' && 'New folder'}
+              {folderDialog.mode === 'rename' && 'Rename folder'}
+              {folderDialog.mode === 'delete' && 'Delete folder?'}
+            </h3>
+            {folderDialog.mode === 'delete' ? (
+              <p className="save-dialog-sub">
+                Delete <strong>"{folderDialog.folder ? folderLabel(folderDialog.folder) : ''}"</strong>?
+                {folderDialog.folder?.doc_count > 0 && (
+                  <> Its {folderDialog.folder.doc_count} document{folderDialog.folder.doc_count === 1 ? '' : 's'} will be kept as <strong>Unfiled</strong>.</>
+                )}
+              </p>
+            ) : (
+              <>
+                <label className="save-dialog-label">Folder name</label>
+                <input
+                  className="save-dialog-input"
+                  type="text"
+                  placeholder="e.g. EC3301: Analog Electronics"
+                  value={folderDialog.name}
+                  onChange={(e) => setFolderDialog(d => ({ ...d, name: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') submitFolderDialog(); }}
+                />
+              </>
+            )}
+            <div className="confirm-actions save-dialog-actions">
+              <button className="btn btn-ghost" onClick={() => setFolderDialog(null)}>Cancel</button>
+              {folderDialog.mode === 'delete' ? (
+                <button className="btn btn-danger" onClick={submitFolderDialog}>Delete</button>
+              ) : (
+                <button className="btn btn-primary" onClick={submitFolderDialog}>
+                  {folderDialog.mode === 'create' ? 'Create' : 'Rename'}
                 </button>
               )}
             </div>
-          ) : (
-            <div className="library-grid">
-              {filteredDocs.map(doc => (
-                <div key={doc.id} className="doc-card glass">
-                  <div className="doc-card-body" onClick={() => loadDocFromCloud(doc.id)}>
-                    <h3 className="doc-card-title">{doc.title}</h3>
-                    <p className="doc-card-preview">{stripMd(doc.preview || '')}</p>
-                    <div className="doc-card-meta">
-                      <span className="doc-card-words">{doc.word_count} words</span>
-                      <span className="doc-card-sep">·</span>
-                      <span className="doc-card-date">{timeAgo(doc.updated_at)}</span>
-                    </div>
-                  </div>
-                  <div className="doc-card-actions">
-                    <button className="btn btn-ghost doc-open-btn" onClick={() => loadDocFromCloud(doc.id)}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-                      Open
-                    </button>
-                    <button className="btn btn-ghost doc-delete-btn" onClick={() => setDeleteConfirm({ docId: doc.id, docTitle: doc.title })}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          </div>
         </div>
       )}
 
