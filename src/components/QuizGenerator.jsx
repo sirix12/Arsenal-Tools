@@ -22,8 +22,8 @@ function loadLink(href) {
 const PROMPT_TEMPLATE = `Please generate a set of multiple-choice questions based on the provided content.
 Format the output EXACTLY as a JSON array of objects, with no markdown formatting around the JSON itself.
 CRITICAL JSON rules:
-1. All nested double quotes inside option strings or explanations MUST be escaped.
-2. Do not omit the dollar sign '$' prefix from MongoDB operators.
+1. All nested double quotes inside option strings or explanations MUST be escaped (e.g. \\"word\\").
+2. Preserve all special symbols, prefixes, and syntax operators (such as '$', '*', '#', '<', '>').
 3. Generate between 2 and 4 options per question.
 
 Each object must have:
@@ -135,6 +135,199 @@ export default function QuizGenerator() {
     } catch { }
   }, []);
 
+/* ------------------------------------------------------------------
+   Advanced Auto-Repair Helpers for JSON Quiz Data
+------------------------------------------------------------------- */
+function peekLookahead(str, startIdx) {
+  let idx = startIdx;
+  while (idx < str.length && /\s/.test(str[idx])) idx++;
+  return str.slice(idx, idx + 60);
+}
+
+function isStructuralValueEnd(lookahead) {
+  if (!lookahead) return true;
+  const first = lookahead[0];
+  if (first === '}' || first === ']') return true;
+  if (first === ',') {
+    const rest = lookahead.slice(1).trimStart();
+    if (!rest) return true;
+    const nextChar = rest[0];
+    if (nextChar === '}' || nextChar === ']' || nextChar === '{' || nextChar === '[') return true;
+    if (/^"[a-zA-Z0-9_\-\s]+"\s*:/.test(rest)) return true;
+    return false;
+  }
+  return false;
+}
+
+function fixUnescapedQuotesInJson(jsonStr) {
+  let result = '';
+  let inString = false;
+  let isKey = false;
+  let escaping = false;
+
+  for (let i = 0; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+
+    if (!inString) {
+      result += char;
+      if (char === '"') {
+        inString = true;
+        let prevIdx = i - 1;
+        while (prevIdx >= 0 && /\s/.test(jsonStr[prevIdx])) prevIdx--;
+        const prevChar = jsonStr[prevIdx];
+        isKey = (prevChar === '{' || prevChar === ',');
+      }
+      continue;
+    }
+
+    if (escaping) {
+      result += char;
+      escaping = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      result += char;
+      escaping = true;
+      continue;
+    }
+
+    if (char === '"') {
+      const lookahead = peekLookahead(jsonStr, i + 1);
+      let isClosing = false;
+
+      if (isKey) {
+        isClosing = lookahead.startsWith(':');
+      } else {
+        isClosing = isStructuralValueEnd(lookahead);
+      }
+
+      if (isClosing) {
+        inString = false;
+        result += '"';
+      } else {
+        result += '\\"';
+      }
+    } else {
+      result += char;
+    }
+  }
+
+  return result;
+}
+
+function extractObjectsFromText(text) {
+  const questions = [];
+  const objectRegex = /\{[\s\S]*?"question"\s*:[\s\S]*?\}/g;
+  let match;
+  while ((match = objectRegex.exec(text)) !== null) {
+    const rawObj = match[0];
+    try {
+      const fixed = fixUnescapedQuotesInJson(rawObj);
+      const repaired = jsonrepair(fixed);
+      const q = JSON.parse(repaired);
+      if (q && typeof q === 'object' && q.question) questions.push(q);
+    } catch {
+      const qMatch = rawObj.match(/"question"\s*:\s*"([^"]+)"/);
+      const ansMatch = rawObj.match(/"correctAnswer"\s*:\s*"([^"]+)"/);
+      const expMatch = rawObj.match(/"explanation"\s*:\s*"([^"]+)"/);
+      if (qMatch && ansMatch) {
+        questions.push({
+          question: qMatch[1],
+          options: [ansMatch[1]],
+          correctAnswer: ansMatch[1],
+          explanation: expMatch ? expMatch[1] : ''
+        });
+      }
+    }
+  }
+  return questions;
+}
+
+function autoRepairQuizJson(rawInput) {
+  if (!rawInput || typeof rawInput !== 'string') return null;
+
+  let text = rawInput.trim();
+
+  // Strip markdown code fences if present
+  text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+  let sanitized = fixUnescapedQuotesInJson(text);
+  let parsedData = null;
+
+  try {
+    parsedData = JSON.parse(sanitized);
+  } catch {
+    try {
+      const repaired = jsonrepair(sanitized);
+      parsedData = JSON.parse(repaired);
+    } catch {
+      try {
+        const repaired = jsonrepair(text);
+        parsedData = JSON.parse(repaired);
+      } catch {
+        parsedData = extractObjectsFromText(text);
+      }
+    }
+  }
+
+  if (!Array.isArray(parsedData) || parsedData.length === 0) return null;
+
+  const repairedQuestions = [];
+  for (let i = 0; i < parsedData.length; i++) {
+    const q = parsedData[i];
+    if (!q || typeof q !== 'object') continue;
+
+    let question = (q.question || '').toString().trim();
+    let options = Array.isArray(q.options) ? q.options.map(o => (o ?? '').toString().trim()) : [];
+    let correctAnswer = (q.correctAnswer || '').toString().trim();
+    let explanation = (q.explanation || '').toString().trim();
+    let code = (q.code || '').toString();
+    let language = (q.language || '').toString();
+
+    if (!question || options.length < 2) continue;
+
+    // Check for missing asterisk symbol in options (e.g. CSS Universal Selector)
+    const combinedText = (question + ' ' + explanation).toLowerCase();
+    if (combinedText.includes('universal selector') || combinedText.includes('asterisk')) {
+      options = options.map(opt => (opt === '' || opt === '""' || opt === "''") ? '*' : opt);
+      if (!correctAnswer || correctAnswer === '""' || correctAnswer === "''") {
+        correctAnswer = '*';
+      }
+    }
+
+    // Auto-repair correctAnswer matching against options
+    if (!options.includes(correctAnswer)) {
+      const normalizedCorrect = correctAnswer.replace(/^['"]|['"]$/g, '').toLowerCase();
+      const match = options.find(opt => {
+        const normOpt = opt.replace(/^['"]|['"]$/g, '').toLowerCase();
+        return normOpt === normalizedCorrect;
+      });
+      if (match) {
+        correctAnswer = match;
+      } else {
+        const partialMatch = options.find(opt => opt.toLowerCase().includes(normalizedCorrect) || normalizedCorrect.includes(opt.toLowerCase()));
+        if (partialMatch) {
+          correctAnswer = partialMatch;
+        }
+      }
+    }
+
+    if (question && options.length >= 2 && correctAnswer && options.includes(correctAnswer)) {
+      repairedQuestions.push({
+        question,
+        options,
+        correctAnswer,
+        explanation,
+        code,
+        language
+      });
+    }
+  }
+
+  return repairedQuestions.length > 0 ? repairedQuestions : null;
+}
+
   /* ----------------------------------------------------------------
      Parse & validate
   ---------------------------------------------------------------- */
@@ -142,21 +335,13 @@ export default function QuizGenerator() {
     setError('');
     const raw = jsonInput.trim();
     if (!raw) { setError('Please paste some JSON data first.'); return null; }
-    try {
-      const repairedRaw = jsonrepair(raw);
-      const data = JSON.parse(repairedRaw);
-      if (!Array.isArray(data) || data.length === 0) { setError('Data must be a non-empty JSON array.'); return null; }
-      for (let i = 0; i < data.length; i++) {
-        const q = data[i];
-        if (!q.question || !Array.isArray(q.options) || q.options.length < 2 || !q.correctAnswer || !q.explanation || !q.options.includes(q.correctAnswer)) {
-          setError(`Item ${i} is missing required fields.`); return null;
-        }
-      }
-      return data;
-    } catch {
+    
+    const data = autoRepairQuizJson(raw);
+    if (!data || data.length === 0) {
       setError('Invalid JSON — even after attempting auto-repair. Please check for syntax errors.');
       return null;
     }
+    return data;
   };
 
   const startNew = () => {

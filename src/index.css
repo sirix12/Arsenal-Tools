@@ -259,3 +259,14 @@ body {
   flex: 1;
   padding-top: var(--navbar-h);
 }
+
+/* ---------- Live2D Companion Interactions ---------- */
+#live2d-widget {
+  pointer-events: auto !important;
+}
+
+#live2dcanvas {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+

@@ -369,7 +369,7 @@ export default function CircuitSimulator() {
       const widget = document.getElementById('live2d-widget');
       if (widget) {
         widget.classList.add('live2d-on-scope-bar');
-        widget.style.setProperty('bottom', '118px', 'important');
+        widget.style.setProperty('bottom', '45px', 'important');
         widget.style.setProperty('transition', 'bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 'important');
         return true;
       }
@@ -389,7 +389,7 @@ export default function CircuitSimulator() {
       const widget = document.getElementById('live2d-widget');
       if (widget) {
         widget.classList.remove('live2d-on-scope-bar');
-        widget.style.setProperty('bottom', '20px', 'important');
+        widget.style.setProperty('bottom', '-60px', 'important');
       }
     };
   }, []);

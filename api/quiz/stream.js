@@ -1,3 +1,5 @@
+import { jsonrepair } from 'jsonrepair';
+
 function validQuestion(question) {
   return question
     && typeof question.question === 'string'
@@ -85,15 +87,27 @@ export default async function handler(request, response) {
           starts.push(index);
         } else if (character === '}' && starts.length) {
           const object = quizBuffer.slice(starts.pop(), index + 1);
+          let question = null;
           try {
-            const question = JSON.parse(object);
+            question = JSON.parse(object);
+          } catch {
+            try {
+              question = JSON.parse(jsonrepair(object));
+            } catch {
+              question = null;
+            }
+          }
+          if (question) {
+            if (!question.options?.includes(question.correctAnswer) && Array.isArray(question.options)) {
+              const normCorrect = (question.correctAnswer || '').trim().toLowerCase();
+              const match = question.options.find(opt => (opt || '').trim().toLowerCase() === normCorrect);
+              if (match) question.correctAnswer = match;
+            }
             const key = JSON.stringify(question);
             if (validQuestion(question) && !emittedQuestions.has(key)) {
               emittedQuestions.add(key);
               send({ type: 'question', question });
             }
-          } catch {
-            // Ignore malformed model objects and continue receiving later output.
           }
         }
       }
