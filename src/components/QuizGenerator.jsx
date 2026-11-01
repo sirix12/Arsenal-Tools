@@ -141,19 +141,20 @@ export default function QuizGenerator() {
 function peekLookahead(str, startIdx) {
   let idx = startIdx;
   while (idx < str.length && /\s/.test(str[idx])) idx++;
-  return str.slice(idx, idx + 60);
+  return str.slice(idx, idx + 80);
 }
 
-function isStructuralValueEnd(lookahead) {
+function isStructuralEnd(lookahead) {
   if (!lookahead) return true;
   const first = lookahead[0];
-  if (first === '}' || first === ']') return true;
+  if (first === ':' || first === '}' || first === ']') return true;
   if (first === ',') {
     const rest = lookahead.slice(1).trimStart();
     if (!rest) return true;
     const nextChar = rest[0];
     if (nextChar === '}' || nextChar === ']' || nextChar === '{' || nextChar === '[') return true;
     if (/^"[a-zA-Z0-9_\-\s]+"\s*:/.test(rest)) return true;
+    if (/^("[^"\\]*(\\.[^"\\]*)*"|true|false|null|-?\d+(\.\d+)?)\s*[,\]]/.test(rest)) return true;
     return false;
   }
   return false;
@@ -162,7 +163,6 @@ function isStructuralValueEnd(lookahead) {
 function fixUnescapedQuotesInJson(jsonStr) {
   let result = '';
   let inString = false;
-  let isKey = false;
   let escaping = false;
 
   for (let i = 0; i < jsonStr.length; i++) {
@@ -172,10 +172,6 @@ function fixUnescapedQuotesInJson(jsonStr) {
       result += char;
       if (char === '"') {
         inString = true;
-        let prevIdx = i - 1;
-        while (prevIdx >= 0 && /\s/.test(jsonStr[prevIdx])) prevIdx--;
-        const prevChar = jsonStr[prevIdx];
-        isKey = (prevChar === '{' || prevChar === ',');
       }
       continue;
     }
@@ -192,17 +188,22 @@ function fixUnescapedQuotesInJson(jsonStr) {
       continue;
     }
 
+    // Handle unescaped control characters inside string literals
+    if (char === '\n') {
+      result += '\\n';
+      continue;
+    }
+    if (char === '\r') {
+      continue;
+    }
+    if (char === '\t') {
+      result += '\\t';
+      continue;
+    }
+
     if (char === '"') {
       const lookahead = peekLookahead(jsonStr, i + 1);
-      let isClosing = false;
-
-      if (isKey) {
-        isClosing = lookahead.startsWith(':');
-      } else {
-        isClosing = isStructuralValueEnd(lookahead);
-      }
-
-      if (isClosing) {
+      if (isStructuralEnd(lookahead)) {
         inString = false;
         result += '"';
       } else {
@@ -287,11 +288,25 @@ function autoRepairQuizJson(rawInput) {
 
     if (!question || options.length < 2) continue;
 
-    // Check for missing asterisk symbol in options (e.g. CSS Universal Selector)
     const combinedText = (question + ' ' + explanation).toLowerCase();
-    if (combinedText.includes('universal selector') || combinedText.includes('asterisk')) {
-      options = options.map(opt => (opt === '' || opt === '""' || opt === "''") ? '*' : opt);
-      if (!correctAnswer || correctAnswer === '""' || correctAnswer === "''") {
+
+    // Auto-repair empty strings or lost HTML tags like <br> or *
+    options = options.map(opt => {
+      if (opt === '' || opt === '\\n' || opt === '""' || opt === "''") {
+        if (combinedText.includes('line break') || combinedText.includes('empty element') || combinedText.includes('new line')) {
+          return '<br>';
+        }
+        if (combinedText.includes('universal selector') || combinedText.includes('asterisk')) {
+          return '*';
+        }
+      }
+      return opt;
+    });
+
+    if (correctAnswer === '' || correctAnswer === '\\n' || correctAnswer === '""' || correctAnswer === "''") {
+      if (combinedText.includes('line break') || combinedText.includes('empty element') || combinedText.includes('new line')) {
+        correctAnswer = '<br>';
+      } else if (combinedText.includes('universal selector') || combinedText.includes('asterisk')) {
         correctAnswer = '*';
       }
     }
@@ -309,6 +324,8 @@ function autoRepairQuizJson(rawInput) {
         const partialMatch = options.find(opt => opt.toLowerCase().includes(normalizedCorrect) || normalizedCorrect.includes(opt.toLowerCase()));
         if (partialMatch) {
           correctAnswer = partialMatch;
+        } else if (options.length >= 2) {
+          correctAnswer = options[0];
         }
       }
     }

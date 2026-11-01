@@ -157,7 +157,7 @@ function loadLive2D() {
 }
 
 /* ---------------------------------------------------------------
-   Theme helpers
+   Theme & Preference helpers
 --------------------------------------------------------------- */
 function getInitialTheme() {
   const saved = localStorage.getItem('arsenal-theme');
@@ -165,11 +165,17 @@ function getInitialTheme() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+function getInitialLive2D() {
+  const saved = localStorage.getItem('arsenal-live2d');
+  return saved !== null ? saved === 'true' : true;
+}
+
 /* ---------------------------------------------------------------
    App Shell
 --------------------------------------------------------------- */
 export default function App() {
   const [theme, setTheme] = useState(getInitialTheme);
+  const [live2dEnabled, setLive2dEnabled] = useState(getInitialLive2D);
 
   /* Apply theme to root element */
   useEffect(() => {
@@ -177,13 +183,48 @@ export default function App() {
     localStorage.setItem('arsenal-theme', theme);
   }, [theme]);
 
-  /* Load Live2D widget once */
+  /* Manage Live2D widget initialization & visibility */
   useEffect(() => {
-    loadLive2D();
-  }, []);
+    localStorage.setItem('arsenal-live2d', String(live2dEnabled));
+
+    const syncVisibility = () => {
+      const widget = document.getElementById('live2d-widget');
+      if (widget) {
+        if (live2dEnabled) {
+          widget.classList.remove('live2d-hidden');
+          widget.style.display = '';
+        } else {
+          widget.classList.add('live2d-hidden');
+          widget.style.display = 'none';
+        }
+      }
+    };
+
+    if (live2dEnabled) {
+      loadLive2D();
+    }
+
+    syncVisibility();
+
+    // Check periodically during initial widget mount
+    let count = 0;
+    const interval = setInterval(() => {
+      count++;
+      syncVisibility();
+      if (document.getElementById('live2d-widget') || count > 15) {
+        clearInterval(interval);
+      }
+    }, 300);
+
+    return () => clearInterval(interval);
+  }, [live2dEnabled]);
 
   const toggleTheme = () => {
     setTheme(t => (t === 'dark' ? 'light' : 'dark'));
+  };
+
+  const toggleLive2D = () => {
+    setLive2dEnabled(prev => !prev);
   };
 
   return (
@@ -196,15 +237,18 @@ export default function App() {
       </div>
 
       {/* Top navigation */}
-      <Navbar theme={theme} onToggleTheme={toggleTheme} />
+      <Navbar
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        live2dEnabled={live2dEnabled}
+        onToggleLive2D={toggleLive2D}
+      />
 
       {/* Page content */}
       <main className="page-content">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/md-reader" element={<MarkdownReader />} />
-          <Route path="/pdf-tools" element={<PdfTools />} />
-          <Route path="/quiz" element={<QuizGenerator />} />
           <Route path="/pdf-tools" element={<PdfTools />} />
           <Route path="/quiz" element={<QuizGenerator />} />
           <Route path="/circuit-simulator" element={<CircuitSimulator />} />

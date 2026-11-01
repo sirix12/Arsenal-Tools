@@ -265,6 +265,10 @@ body {
   pointer-events: auto !important;
 }
 
+#live2d-widget.live2d-hidden {
+  display: none !important;
+}
+
 #live2dcanvas {
   pointer-events: auto !important;
   cursor: pointer !important;

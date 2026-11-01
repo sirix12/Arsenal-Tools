@@ -17,6 +17,11 @@
   border-top: none;
   border-left: none;
   border-right: none;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color var(--transition), border-color var(--transition);
+}
+
+body.reader-topbar-hidden .navbar {
+  transform: translateY(-100%);
 }
 
 /* Brand */
@@ -135,6 +140,25 @@
   padding: 0.5rem;
   margin-left: 0.5rem;
   flex-shrink: 0;
+}
+
+/* Live2D toggle */
+.live2d-toggle {
+  padding: 0.5rem;
+  margin-left: 0.25rem;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.live2d-toggle.active {
+  color: #ec4899;
+  background: rgba(236, 72, 153, 0.15);
+  border-color: rgba(236, 72, 153, 0.3);
+}
+
+.live2d-toggle.active:hover {
+  background: rgba(236, 72, 153, 0.25);
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.3);
 }
 
 /* Mobile */

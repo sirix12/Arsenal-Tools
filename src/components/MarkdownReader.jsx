@@ -200,6 +200,59 @@ export default function MarkdownReader() {
         window.markedKatex({ throwOnError: false, output: 'html', nonStandard: true })
       );
 
+      // Custom marked extension to support \fbox{...} and \boxed{...} syntax with nested braces and math
+      const fboxExtension = {
+        name: 'fbox',
+        level: 'inline',
+        childTokens: ['tokens'],
+        start(src) {
+          const match = /\\(?:fbox|boxed)\{/.exec(src);
+          return match ? match.index : -1;
+        },
+        tokenizer(src) {
+          const match = /^\\(?:fbox|boxed)\{/.exec(src);
+          if (!match) return;
+
+          let depth = 1;
+          let i = match[0].length;
+          while (i < src.length && depth > 0) {
+            if (src[i] === '\\' && i + 1 < src.length) {
+              i += 2;
+              continue;
+            }
+            if (src[i] === '{') {
+              depth++;
+            } else if (src[i] === '}') {
+              depth--;
+            }
+            i++;
+          }
+
+          if (depth === 0) {
+            const raw = src.slice(0, i);
+            const text = src.slice(match[0].length, i - 1);
+            const token = {
+              type: 'fbox',
+              raw,
+              text,
+              tokens: []
+            };
+            if (this.lexer && typeof this.lexer.inline === 'function') {
+              this.lexer.inline(token.text, token.tokens);
+            }
+            return token;
+          }
+          return null;
+        },
+        renderer(token) {
+          const inner = (token.tokens && this.parser?.parseInline)
+            ? this.parser.parseInline(token.tokens)
+            : (token.text || '');
+          return `<span class="md-fbox">${inner}</span>`;
+        }
+      };
+      window.marked.use({ extensions: [fboxExtension] });
+
       let rawBlocks = [];
       window.marked.use({
         hooks: {
@@ -226,18 +279,84 @@ export default function MarkdownReader() {
     })();
   }, []);
 
-  /* Progress bar on scroll */
+  /* Progress bar on scroll & auto-hiding top bar when scrolling down in reader view */
   useEffect(() => {
-    if (view !== 'reader') return;
-    const update = () => {
-      const scrolled = document.documentElement.scrollTop;
-      const total = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      if (progressRef.current)
-        progressRef.current.style.width = total === 0 ? '0%' : (scrolled / total) * 100 + '%';
+    if (view !== 'reader') {
+      document.body.classList.remove('reader-topbar-hidden');
+      return;
+    }
+
+    let lastScrollY = Math.max(0, window.scrollY);
+    let isHidden = false;
+    let ticking = false;
+
+    const updateScroll = () => {
+      const scrollY = window.scrollY;
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - document.documentElement.clientHeight);
+      const currentScrollY = Math.min(maxScroll, Math.max(0, scrollY));
+      const total = maxScroll;
+
+      if (progressRef.current) {
+        progressRef.current.style.width = total <= 0 ? '0%' : `${(currentScrollY / total) * 100}%`;
+      }
+
+      const diff = currentScrollY - lastScrollY;
+
+      // Always show near top of document
+      if (currentScrollY <= 40) {
+        if (isHidden) {
+          isHidden = false;
+          document.body.classList.remove('reader-topbar-hidden');
+        }
+      } else if (diff > 8) {
+        // Scrolling down -> hide top bar
+        if (!isHidden) {
+          isHidden = true;
+          document.body.classList.add('reader-topbar-hidden');
+        }
+      } else if (diff < -8) {
+        // Scrolling up -> show top bar
+        if (isHidden) {
+          isHidden = false;
+          document.body.classList.remove('reader-topbar-hidden');
+        }
+      }
+
+      lastScrollY = currentScrollY;
+      ticking = false;
     };
-    window.addEventListener('scroll', update);
-    return () => window.removeEventListener('scroll', update);
+
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateScroll);
+        ticking = true;
+      }
+    };
+
+    const onMouseMove = (e) => {
+      // Reveal if cursor hovers near top edge of viewport (e.g. within 25px)
+      if (isHidden && e.clientY <= 25) {
+        isHidden = false;
+        document.body.classList.remove('reader-topbar-hidden');
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('mousemove', onMouseMove);
+      document.body.classList.remove('reader-topbar-hidden');
+    };
   }, [view]);
+
+  // Keep top bar visible if a dialog opens
+  useEffect(() => {
+    if (saveDialog || folderDialog || deleteConfirm) {
+      document.body.classList.remove('reader-topbar-hidden');
+    }
+  }, [saveDialog, folderDialog, deleteConfirm]);
 
   const calcStats = (text) => {
     const clean = text.replace(/[#*`_[\]()$]/g, '');
