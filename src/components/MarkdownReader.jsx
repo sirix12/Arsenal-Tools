@@ -81,6 +81,218 @@ function extractBlockHtml(markdown) {
   return { output, blocks };
 }
 
+/* Helper to find matching closing brace with nesting and escaping support */
+function matchBalancedBraces(str, startIndex) {
+  if (str[startIndex] !== '{') return null;
+  let depth = 0;
+  for (let i = startIndex; i < str.length; i++) {
+    if (str[i] === '\\' && i + 1 < str.length) {
+      i++;
+      continue;
+    }
+    if (str[i] === '{') depth++;
+    else if (str[i] === '}') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return null;
+}
+
+/* Wraps bare \sqrt{...} or \sqrt[n]{...} in $...$ if written outside math delimiters */
+function wrapBareSqrt(text) {
+  let result = '';
+  let i = 0;
+  while (i < text.length) {
+    if (text.startsWith('\\sqrt', i)) {
+      let idx = i + 5;
+      if (text[idx] === '[') {
+        const closeBracket = text.indexOf(']', idx);
+        if (closeBracket !== -1) idx = closeBracket + 1;
+      }
+      while (idx < text.length && /\s/.test(text[idx])) idx++;
+      if (text[idx] === '{') {
+        const endBrace = matchBalancedBraces(text, idx);
+        if (endBrace !== null) {
+          const sqrtExpr = text.slice(i, endBrace + 1);
+          result += `$${sqrtExpr}$`;
+          i = endBrace + 1;
+          continue;
+        }
+      }
+    }
+    result += text[i];
+    i++;
+  }
+  return result;
+}
+
+/* Preprocesses LaTeX math notation to ensure robust KaTeX rendering:
+   - Converts standard LaTeX display math \[ ... \] to $$ ... $$
+   - Converts standard LaTeX inline math \( ... \) to $ ... $
+   - Normalizes Unicode square roots (e.g. √(x) and √2) to \sqrt{...}
+   - Auto-wraps bare \sqrt{...} expressions outside code blocks in $...$
+*/
+function preprocessMath(markdown) {
+  if (!markdown) return markdown;
+  let text = markdown;
+
+  // 1. Protect code blocks (fenced ``` and inline `)
+  const codeBlocks = [];
+  text = text.replace(/(```[\s\S]*?```|`[^`\n]+`)/g, (match) => {
+    codeBlocks.push(match);
+    return `@@CODE_BLOCK_${codeBlocks.length - 1}@@`;
+  });
+
+  // 2. Protect HTML comments
+  const htmlComments = [];
+  text = text.replace(/(<!--[\s\S]*?-->)/g, (match) => {
+    htmlComments.push(match);
+    return `@@HTML_COMMENT_${htmlComments.length - 1}@@`;
+  });
+
+  // 3. Convert LaTeX display math \[ ... \] to $$ ... $$
+  text = text.replace(/\\\[([\s\S]*?)\\\]/g, (match, inner) => {
+    return `\n$$\n${inner.trim()}\n$$\n`;
+  });
+
+  // 4. Convert LaTeX inline math \( ... \) to $ ... $
+  text = text.replace(/\\\(([\s\S]*?)\\\)/g, (match, inner) => {
+    return `$${inner.trim()}$`;
+  });
+
+  // 5. Convert Unicode roots to \sqrt{...}
+  text = text.replace(/√\(([^)]+)\)/g, '\\sqrt{$1}');
+  text = text.replace(/√([0-9a-zA-Z]+)/g, '\\sqrt{$1}');
+
+  // 6. Protect existing $$ ... $$ and $ ... $ math blocks
+  const mathTokens = [];
+  text = text.replace(/(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$)/g, (match) => {
+    mathTokens.push(match);
+    return `@@MATH_TOKEN_${mathTokens.length - 1}@@`;
+  });
+
+  // 7. Handle bare \sqrt{...} outside existing math
+  text = wrapBareSqrt(text);
+
+  // Restore math tokens
+  text = text.replace(/@@MATH_TOKEN_(\d+)@@/g, (_, id) => mathTokens[Number(id)]);
+
+  // Restore HTML comments
+  text = text.replace(/@@HTML_COMMENT_(\d+)@@/g, (_, id) => htmlComments[Number(id)]);
+
+  // Restore code blocks
+  text = text.replace(/@@CODE_BLOCK_(\d+)@@/g, (_, id) => codeBlocks[Number(id)]);
+
+  return text;
+}
+
+/* Analyzes document text and rendered HTML to detect math rendering issues,
+   KaTeX syntax errors, unclosed delimiters, or dropped symbols. */
+function analyzeDocumentWarnings(markdown, renderedHtml) {
+  const warnings = [];
+
+  // 1. KaTeX parse errors from rendered HTML
+  if (renderedHtml) {
+    const errorRegex = /<span class="katex-error"[^>]*title="([^"]*)"[^>]*>([\s\S]*?)<\/span>/g;
+    let m;
+    while ((m = errorRegex.exec(renderedHtml)) !== null) {
+      warnings.push({
+        id: `katex-${warnings.length}`,
+        type: 'katex-error',
+        title: 'KaTeX Syntax Error',
+        message: m[1].replace(/^ParseError:\s*/, ''),
+        snippet: m[2]
+      });
+    }
+
+    // Unrendered LaTeX commands in rendered HTML (strip code/pre/annotation/katex first)
+    const cleanHtml = renderedHtml
+      .replace(/<pre[\s\S]*?<\/pre>/gi, '')
+      .replace(/<code[\s\S]*?<\/code>/gi, '')
+      .replace(/<annotation[\s\S]*?<\/annotation>/gi, '')
+      .replace(/<span class="katex"[\s\S]*?<\/span>\s*<\/span>/gi, '');
+
+    const unrenderedRegex = /\\(sqrt|frac|sum|int|cbrt|pm|times|div|partial|infty|approx|ne|le|ge)\b/g;
+    while ((m = unrenderedRegex.exec(cleanHtml)) !== null) {
+      const start = Math.max(0, m.index - 25);
+      const end = Math.min(cleanHtml.length, m.index + 35);
+      const snippet = cleanHtml.slice(start, end).replace(/<[^>]+>/g, '').trim();
+      warnings.push({
+        id: `unrendered-${warnings.length}`,
+        type: 'unrendered-latex',
+        title: `Unrendered \\${m[1]} Symbol`,
+        message: `LaTeX command \\${m[1]} was not rendered as a math symbol. Check for missing math delimiters ($ or $$) or unclosed brackets.`,
+        snippet: snippet || `\\${m[1]}`
+      });
+    }
+  }
+
+  // 2. Scan raw markdown (outside code blocks) for syntax issues
+  if (markdown) {
+    const cleanMd = markdown
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`[^`\n]+`/g, '');
+
+    // Check unmatched $$
+    const doubleDollars = (cleanMd.match(/\$\$/g) || []).length;
+    if (doubleDollars % 2 !== 0) {
+      warnings.push({
+        id: `syntax-${warnings.length}`,
+        type: 'unclosed-display-math',
+        title: 'Unclosed Display Math ($$)',
+        message: 'Found an odd number of $$ delimiters. A display math block is missing its closing $$.',
+        snippet: '$$'
+      });
+    }
+
+    // Check unmatched \[ or \(
+    const openDisplay = (cleanMd.match(/\\\[/g) || []).length;
+    const closeDisplay = (cleanMd.match(/\\\]/g) || []).length;
+    if (openDisplay !== closeDisplay) {
+      warnings.push({
+        id: `syntax-${warnings.length}`,
+        type: 'unclosed-latex-bracket',
+        title: 'Unmatched LaTeX \\[ \\] Delimiters',
+        message: `Found ${openDisplay} opening \\[ and ${closeDisplay} closing \\] delimiters.`,
+        snippet: '\\[ ... \\]'
+      });
+    }
+
+    const openInline = (cleanMd.match(/\\\(/g) || []).length;
+    const closeInline = (cleanMd.match(/\\\)/g) || []).length;
+    if (openInline !== closeInline) {
+      warnings.push({
+        id: `syntax-${warnings.length}`,
+        type: 'unclosed-latex-paren',
+        title: 'Unmatched LaTeX \\( \\) Delimiters',
+        message: `Found ${openInline} opening \\( and ${closeInline} closing \\) delimiters.`,
+        snippet: '\\( ... \\)'
+      });
+    }
+
+    // Check line by line for unmatched single $ that looks like math
+    const lines = cleanMd.split('\n');
+    lines.forEach((line, lineIdx) => {
+      const stripped = line.replace(/\\\$/g, '').replace(/\$\$[^$]*\$\$/g, '');
+      const singleDollars = (stripped.match(/\$/g) || []).length;
+      if (singleDollars % 2 !== 0) {
+        if (/(\$[^$\n]*[_^\\{}=])|([{}_][^$\n]*\$)/.test(stripped)) {
+          warnings.push({
+            id: `syntax-line-${lineIdx}`,
+            type: 'unclosed-inline-math',
+            title: `Potential Unclosed $ on Line ${lineIdx + 1}`,
+            message: `Line ${lineIdx + 1} has an unclosed $ delimiter around a math expression.`,
+            snippet: line.trim()
+          });
+        }
+      }
+    });
+  }
+
+  return warnings;
+}
+
 function extractTitle(md) {
   const match = md.match(/^#\s+(.+)$/m);
   if (match) return match[1].trim();
@@ -161,6 +373,10 @@ export default function MarkdownReader() {
   // Delete confirmation state
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { docId, docTitle }
 
+  // Math & symbol warnings (diagnostics that never block saving)
+  const [warnings, setWarnings] = useState([]);
+  const [showWarningsModal, setShowWarningsModal] = useState(false);
+
   const readerRef = useRef(null);
   const progressRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -169,7 +385,7 @@ export default function MarkdownReader() {
   const showToast = useCallback((message, type = 'success') => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast({ message, type });
-    toastTimer.current = setTimeout(() => setToast(null), 3500);
+    toastTimer.current = setTimeout(() => setToast(null), 4000);
   }, []);
 
   /* Load CDN scripts once */
@@ -258,7 +474,8 @@ export default function MarkdownReader() {
         hooks: {
           preprocess(markdown) {
             if (!markdown) return markdown;
-            const extracted = extractBlockHtml(markdown);
+            const withMath = preprocessMath(markdown);
+            const extracted = extractBlockHtml(withMath);
             rawBlocks = extracted.blocks;
             return extracted.output;
           },
@@ -353,10 +570,10 @@ export default function MarkdownReader() {
 
   // Keep top bar visible if a dialog opens
   useEffect(() => {
-    if (saveDialog || folderDialog || deleteConfirm) {
+    if (saveDialog || folderDialog || deleteConfirm || showWarningsModal) {
       document.body.classList.remove('reader-topbar-hidden');
     }
-  }, [saveDialog, folderDialog, deleteConfirm]);
+  }, [saveDialog, folderDialog, deleteConfirm, showWarningsModal]);
 
   const calcStats = (text) => {
     const clean = text.replace(/[#*`_[\]()$]/g, '');
@@ -369,6 +586,8 @@ export default function MarkdownReader() {
     if (!mdText.trim() || !ready) return;
     const html = window.marked.parse(mdText);
     setRenderedHtml(html);
+    const warns = analyzeDocumentWarnings(mdText, html);
+    setWarnings(warns);
     calcStats(mdText);
     setView('reader');
     window.scrollTo(0, 0);
@@ -386,9 +605,16 @@ export default function MarkdownReader() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setMdText(ev.target.result);
+      const text = ev.target.result;
+      setMdText(text);
       setCurrentDocId(null); // new file, not from library
       setCurrentFolderId(null);
+      if (ready && text.trim()) {
+        try {
+          const html = window.marked.parse(text);
+          setWarnings(analyzeDocumentWarnings(text, html));
+        } catch {}
+      }
     };
     reader.readAsText(file);
   };
@@ -409,6 +635,11 @@ export default function MarkdownReader() {
         const a = Object.assign(document.createElement('a'), { href: url, download: 'document.md' });
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
+      }
+      if (warnings.length > 0) {
+        showToast(`File saved! (⚠️ ${warnings.length} math warning${warnings.length > 1 ? 's' : ''})`, 'warning');
+      } else {
+        showToast('File saved!');
       }
     } catch (err) {
       if (err.name !== 'AbortError') alert('Failed to save file.');
@@ -573,17 +804,34 @@ export default function MarkdownReader() {
       setCurrentDocId(saved.id);
       setCurrentFolderId(saved.folder_id || null);
       setSaveDialog(null);
-      showToast(asNew || !currentDocId ? 'Document saved!' : 'Document updated!');
+      if (warnings.length > 0) {
+        showToast(
+          asNew || !currentDocId
+            ? `Document saved! (⚠️ ${warnings.length} math warning${warnings.length > 1 ? 's' : ''})`
+            : `Document updated! (⚠️ ${warnings.length} math warning${warnings.length > 1 ? 's' : ''})`,
+          'warning'
+        );
+      } else {
+        showToast(asNew || !currentDocId ? 'Document saved!' : 'Document updated!');
+      }
       fetchLibrary(true); // refresh counts / new folders in background
     } catch (err) {
       console.error('Error saving doc:', err);
       showToast(err.message || 'Failed to save document', 'error');
       setSaveDialog(d => (d ? { ...d, saving: false } : d));
     }
-  }, [mdText, saveDialog, currentDocId, showToast, fetchLibrary]);
+  }, [mdText, saveDialog, currentDocId, showToast, fetchLibrary, warnings]);
 
   const openSaveDialog = useCallback(() => {
     if (!mdText.trim()) return;
+    if (ready) {
+      try {
+        const html = window.marked.parse(mdText);
+        setWarnings(analyzeDocumentWarnings(mdText, html));
+      } catch (err) {
+        console.error('Error analyzing warnings:', err);
+      }
+    }
     const open = () => setSaveDialog({
       folderId: currentFolderId || 'unfiled',
       newFolderName: '',
@@ -596,7 +844,7 @@ export default function MarkdownReader() {
     } else {
       open();
     }
-  }, [mdText, currentFolderId, folders.length, fetchLibrary]);
+  }, [mdText, currentFolderId, folders.length, fetchLibrary, ready]);
 
   /* Preload folders/docs in the background so the save dialog and library
      are instant even if the library view was never opened. */
@@ -619,10 +867,18 @@ export default function MarkdownReader() {
       if (ready && doc.content.trim()) {
         const html = window.marked.parse(doc.content);
         setRenderedHtml(html);
+        const warns = analyzeDocumentWarnings(doc.content, html);
+        setWarnings(warns);
         calcStats(doc.content);
         setView('reader');
         window.scrollTo(0, 0);
       } else {
+        if (ready && doc.content) {
+          try {
+            const html = window.marked.parse(doc.content);
+            setWarnings(analyzeDocumentWarnings(doc.content, html));
+          } catch {}
+        }
         setView('input');
       }
       showToast(`Loaded "${doc.title}"`);
@@ -757,6 +1013,28 @@ export default function MarkdownReader() {
             </div>
           </div>
 
+          {warnings.length > 0 && (
+            <div className="editor-warning-banner">
+              <div className="editor-warning-banner-text">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <span>
+                  <strong>{warnings.length} math warning{warnings.length > 1 ? 's' : ''} detected</strong> (e.g. unclosed math delimiters or unrendered LaTeX commands). Saving is not blocked.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowWarningsModal(true)}
+              >
+                Review Warnings
+              </button>
+            </div>
+          )}
+
           <p className="md-input-hint">Paste Markdown (supports LaTeX math!) or upload a file, then click Read.</p>
 
           <textarea
@@ -806,6 +1084,23 @@ export default function MarkdownReader() {
               <span>{wordCount} words</span>
               <span>·</span>
               <span>{readTime} min read</span>
+              {warnings.length > 0 && (
+                <>
+                  <span>·</span>
+                  <button
+                    className="btn btn-warning-badge"
+                    onClick={() => setShowWarningsModal(true)}
+                    title="Click to view math formatting warnings"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <span>{warnings.length} Math Warning{warnings.length > 1 ? 's' : ''}</span>
+                  </button>
+                </>
+              )}
             </div>
 
             <div className="reader-actions">
@@ -1053,6 +1348,27 @@ export default function MarkdownReader() {
                 />
               </>
             )}
+            {warnings.length > 0 && (
+              <div className="save-dialog-warning-banner">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <div style={{ flex: 1 }}>
+                  <strong>{warnings.length} math formatting warning{warnings.length > 1 ? 's' : ''} detected</strong>
+                  <p>Some symbols or expressions may not display correctly. <em>Saving is not blocked.</em></p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', alignSelf: 'center' }}
+                  onClick={() => setShowWarningsModal(true)}
+                >
+                  Review
+                </button>
+              </div>
+            )}
             <div className="confirm-actions save-dialog-actions">
               <button className="btn btn-ghost" disabled={saveDialog.saving} onClick={() => setSaveDialog(null)}>Cancel</button>
               {currentDocId && (
@@ -1132,14 +1448,82 @@ export default function MarkdownReader() {
         </div>
       )}
 
+      {/* ---- DIAGNOSTICS & MATH WARNINGS MODAL ---- */}
+      {showWarningsModal && (
+        <div className="confirm-overlay" onClick={() => setShowWarningsModal(false)}>
+          <div className="diagnostics-modal glass" onClick={e => e.stopPropagation()}>
+            <div className="diagnostics-modal-header">
+              <div className="diagnostics-modal-title">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <h3>Math & Symbol Diagnostics</h3>
+              </div>
+              <button className="icon-btn" onClick={() => setShowWarningsModal(false)} title="Close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <p className="diagnostics-modal-sub">
+              Found <strong>{warnings.length}</strong> potential formatting or rendering issue{warnings.length === 1 ? '' : 's'}.
+              These highlight symbols (like root signs, fractions, or delimiters) that might be malformed or dropped. <em>Saving is never blocked.</em>
+            </p>
+
+            <div className="diagnostics-list">
+              {warnings.map((w, idx) => (
+                <div key={w.id || idx} className="diagnostic-item">
+                  <div className="diagnostic-item-header">
+                    <span className="diagnostic-title">{w.title}</span>
+                    <span className="diagnostic-type-badge">{w.type.replace(/-/g, ' ')}</span>
+                  </div>
+                  <div className="diagnostic-desc">{w.message}</div>
+                  {w.snippet && (
+                    <div className="diagnostic-snippet">{w.snippet}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="confirm-actions diagnostics-actions">
+              {view === 'reader' && (
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setShowWarningsModal(false);
+                    setView('input');
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Edit in Document
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={() => setShowWarningsModal(false)}>
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ---- TOAST NOTIFICATION ---- */}
       {toast && (
         <div className={`toast toast-${toast.type}`}>
           <span className="toast-icon">
-            {toast.type === 'success' ? (
+            {toast.type === 'success' && (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-            ) : (
+            )}
+            {toast.type === 'error' && (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+            )}
+            {toast.type === 'warning' && (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
             )}
           </span>
           <span className="toast-message">{toast.message}</span>
