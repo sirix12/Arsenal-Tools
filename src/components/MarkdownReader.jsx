@@ -413,7 +413,7 @@ export default function MarkdownReader() {
         })
       );
       window.marked.use(
-        window.markedKatex({ throwOnError: false, output: 'html', nonStandard: true })
+        window.markedKatex({ throwOnError: false, output: 'htmlAndMathml', nonStandard: true })
       );
 
       // Custom marked extension to support \fbox{...} and \boxed{...} syntax with nested braces and math
