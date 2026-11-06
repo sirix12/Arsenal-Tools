@@ -8,6 +8,8 @@ import MarkdownReader from './components/MarkdownReader';
 import PdfTools from './components/PdfTools';
 import QuizGenerator from './components/QuizGenerator';
 import CircuitSimulator from './components/CircuitSimulator';
+import GraphingCalculator from './components/GraphingCalculator';
+import CodePlotter from './components/CodePlotter';
 
 /* ---------------------------------------------------------------
    Live2D widget loader (shared across all pages)
@@ -252,6 +254,8 @@ export default function App() {
           <Route path="/pdf-tools" element={<PdfTools />} />
           <Route path="/quiz" element={<QuizGenerator />} />
           <Route path="/circuit-simulator" element={<CircuitSimulator />} />
+          <Route path="/graphing-calculator" element={<GraphingCalculator />} />
+          <Route path="/code-plotter" element={<CodePlotter />} />
           {/* Fallback */}
           <Route path="*" element={<Dashboard />} />
         </Routes>

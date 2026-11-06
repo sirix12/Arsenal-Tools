@@ -56,9 +56,60 @@ const coreTools = [
   },
 ];
 
-const hubCategories = ['All', 'Electronics', 'Mathematics', 'Physics', 'Computer Science'];
+const hubCategories = ['All', 'Electronics', 'Mathematics'];
 
 const toolHubItems = [
+  {
+    path: '/code-plotter',
+    name: 'MATLAB & Matplotlib Studio',
+    module: 'Mathematics',
+    tagline: 'Code to Publication Diagrams',
+    badge: 'Python Wasm',
+    description:
+      'Paste MATLAB or Python Matplotlib code to render publication-grade 2D curves, subplots, convolutions, FFT spectrums, Bode plots, polar charts, and 3D surfaces via Matplotlib WebAssembly.',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3v18h18" />
+        <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
+        <circle cx="18.7" cy="8" r="1.5" fill="currentColor" />
+        <circle cx="13.6" cy="13.2" r="1.5" fill="currentColor" />
+        <circle cx="10.8" cy="10.5" r="1.5" fill="currentColor" />
+        <circle cx="7" cy="14.3" r="1.5" fill="currentColor" />
+      </svg>
+    ),
+    gradient: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+    features: [
+      'Powered by Pyodide Python + Matplotlib Wasm',
+      'MATLAB .m & Python Matplotlib auto-detection',
+      'Subplots, convolution, log scales, polar & 3D',
+      'Workspace variable inspector & PNG/SVG export',
+    ],
+    isReady: true,
+  },
+  {
+    path: '/graphing-calculator',
+    name: 'Desmos Graphing Studio',
+    module: 'Mathematics',
+    tagline: 'JSXGraph + MathLive + CortexJS',
+    badge: '3-Part Engine',
+    description:
+      'Interactive graphing calculator with LaTeX equation sidebar (MathLive), MathJSON symbolic & numeric engine (CortexJS), and 2D/polar/parametric/implicit/slope-field plotting (JSXGraph).',
+    icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="3" y1="3" x2="3" y2="21" />
+        <line x1="3" y1="21" x2="21" y2="21" />
+        <path d="M4 16c3-8 6-8 9 0s6 8 8-6" />
+      </svg>
+    ),
+    gradient: 'linear-gradient(135deg, #10b981, #3b82f6)',
+    features: [
+      'MathLive LaTeX sidebar & virtual keypad',
+      'CortexJS MathJSON parser & sliders',
+      'Explicit, Implicit, Polar & Parametric plots',
+      'Key points (roots, extrema, intersections)',
+    ],
+    isReady: true,
+  },
   {
     path: '/circuit-simulator',
     name: 'Circuit Simulator',
@@ -75,70 +126,6 @@ const toolHubItems = [
     gradient: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
     features: ['Original CircuitJS1 engine', 'Multi-channel oscilloscopes', 'Right-click context menus', 'Add from Code & netlist import'],
     isReady: true,
-  },
-  {
-    path: '#',
-    name: 'Logic Gate Designer',
-    module: 'Computer Science',
-    tagline: 'Digital logic & state machines',
-    badge: 'Coming Soon',
-    description:
-      'Design combinational and sequential digital circuits with logic gates, flip-flops, clock generators, and automated truth tables.',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="4" y="4" width="16" height="16" rx="2" />
-        <rect x="9" y="9" width="6" height="6" />
-        <line x1="9" y1="1" x2="9" y2="4" />
-        <line x1="15" y1="1" x2="15" y2="4" />
-        <line x1="9" y1="20" x2="9" y2="23" />
-        <line x1="15" y1="20" x2="15" y2="23" />
-        <line x1="20" y1="9" x2="23" y2="9" />
-        <line x1="20" y1="14" x2="23" y2="14" />
-        <line x1="1" y1="9" x2="4" y2="9" />
-        <line x1="1" y1="14" x2="4" y2="14" />
-      </svg>
-    ),
-    gradient: 'linear-gradient(135deg, #10b981, #059669)',
-    features: ['Gate-level simulation', 'Truth table generator', 'Clock & latch timing'],
-    isReady: false,
-  },
-  {
-    path: '#',
-    name: 'Signal & Fourier Lab',
-    module: 'Mathematics',
-    tagline: 'Harmonics & spectrum analysis',
-    badge: 'Coming Soon',
-    description:
-      'Interactive wave superposition, Fourier series synthesis, frequency domain harmonics decomposition, and filter response curves.',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M2 12c3-8 5-8 8 0s5 8 8 0 5-8 8 0" />
-        <line x1="2" y1="12" x2="22" y2="12" />
-      </svg>
-    ),
-    gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
-    features: ['Harmonic superposition', 'Bode plot curves', 'Audio waveform synthesis'],
-    isReady: false,
-  },
-  {
-    path: '#',
-    name: 'Field & Motion Lab',
-    module: 'Physics',
-    tagline: 'Electromagnetics & dynamics',
-    badge: 'Coming Soon',
-    description:
-      'Vector field visualization for electric/magnetic charges, projectile trajectories, potential energy contours, and Newtonian collisions.',
-    icon: (
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M3.6 9h16.8" />
-        <path d="M3.6 15h16.8" />
-        <path d="M12 3a14 14 0 0 0 0 18" />
-      </svg>
-    ),
-    gradient: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-    features: ['E & B vector fields', 'Gravity & charge interaction', 'Real-time trajectory physics'],
-    isReady: false,
   },
 ];
 

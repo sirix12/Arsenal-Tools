@@ -1,0 +1,1092 @@
+/* ============================================================
+   Desmos Graphing Studio — Styles
+   JSXGraph + MathLive + CortexJS Compute Engine
+   ============================================================ */
+
+.graph-calc-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--navbar-h, 64px));
+  width: 100%;
+  background: var(--bg-darkest, #020617);
+  color: var(--text-main, #f8fafc);
+  overflow: hidden;
+  position: relative;
+}
+
+.graph-calc-page.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  width: 100vw;
+  z-index: 9999;
+}
+
+/* ---------- Top Control Bar ---------- */
+.graph-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  height: 48px;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  gap: 1rem;
+  z-index: 25;
+}
+
+[data-theme="light"] .graph-topbar {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.graph-bar-left,
+.graph-bar-center,
+.graph-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.graph-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.graph-logo-icon {
+  font-size: 1.15rem;
+}
+
+.graph-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: var(--text-main);
+}
+
+.graph-engine-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+
+.graph-preset-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.graph-preset-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.graph-preset-select {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  padding: 0.28rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  max-width: 260px;
+}
+
+[data-theme="light"] .graph-preset-select {
+  background: #f8fafc;
+}
+
+.angle-mode-pill {
+  display: inline-flex;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+[data-theme="light"] .angle-mode-pill {
+  background: #f1f5f9;
+}
+
+.angle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.25rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.angle-btn.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.graph-action-btn {
+  padding: 0.28rem 0.65rem;
+  font-size: 0.78rem;
+  border-radius: 6px;
+}
+
+.graph-action-btn.active {
+  background: var(--primary-dim);
+  border-color: var(--primary);
+  color: var(--text-main);
+}
+
+.graph-icon-btn {
+  padding: 0.35rem;
+  border-radius: 6px;
+}
+
+/* ---------- Split Workspace ---------- */
+.graph-workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+}
+
+/* ---------- Left Expression Sidebar ---------- */
+.graph-sidebar {
+  width: 390px;
+  min-width: 320px;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 23, 42, 0.92);
+  border-right: 1px solid var(--glass-border);
+  z-index: 15;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .graph-sidebar {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.sidebar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(30, 41, 59, 0.45);
+}
+
+[data-theme="light"] .sidebar-toolbar {
+  background: #f8fafc;
+}
+
+.add-item-dropdown-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.add-expr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px 0 0 6px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-expr-btn:hover {
+  background: var(--primary-hover);
+}
+
+.plus-icon {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.add-expr-more-btn {
+  background: var(--primary-hover);
+  color: #fff;
+  border: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0 6px 6px 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.add-item-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+  border-radius: 8px;
+  z-index: 50;
+}
+
+.add-item-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  padding: 0.48rem 0.65rem;
+  font-size: 0.82rem;
+  text-align: left;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.add-item-menu button:hover {
+  background: var(--primary-dim);
+}
+
+.sidebar-clear-btn {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 0.28rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sidebar-clear-btn:hover {
+  color: var(--error);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* ---------- Expression List & Cards ---------- */
+.expression-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.expr-card {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--glass-border);
+  background: transparent;
+  transition: background 0.15s ease;
+  position: relative;
+}
+
+.expr-card:focus-within {
+  background: rgba(139, 92, 246, 0.06);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.expr-card.is-muted {
+  opacity: 0.65;
+}
+
+/* Left Gutter */
+.expr-gutter {
+  width: 44px;
+  background: rgba(30, 41, 59, 0.35);
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.45rem 0;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+[data-theme="light"] .expr-gutter {
+  background: #f1f5f9;
+}
+
+.expr-index {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+
+.expr-color-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.expr-color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2.5px solid currentColor;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.expr-color-dot:hover {
+  transform: scale(1.12);
+}
+
+.expr-style-trigger {
+  background: transparent;
+  border: none;
+  font-size: 0.7rem;
+  opacity: 0.55;
+  cursor: pointer;
+  padding: 1px;
+}
+
+.expr-style-trigger:hover {
+  opacity: 1;
+}
+
+/* Expression Body */
+.expr-body {
+  flex: 1;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  position: relative;
+}
+
+/* MathLive <math-field> Custom Theme */
+.desmos-math-field {
+  width: 100%;
+  font-size: 1.12rem;
+  background: transparent;
+  color: var(--text-main);
+  border: none;
+  outline: none;
+  padding: 0.15rem 0;
+  --hue: 262;
+  --highlight-inactive: rgba(139, 92, 246, 0.15);
+  --caret-color: #8b5cf6;
+  --selection-background-color: rgba(139, 92, 246, 0.28);
+  --selection-color: var(--text-main);
+  --contains-highlight-background-color: rgba(139, 92, 246, 0.08);
+}
+
+.desmos-math-field::part(virtual-keyboard-toggle) {
+  display: none;
+}
+
+.desmos-math-field::part(menu-toggle) {
+  display: none;
+}
+
+.slopefield-prefix {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+/* Evaluation & Kind Meta Badges */
+.expr-meta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.expr-eval-badge {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid var(--glass-border);
+  padding: 0.12rem 0.5rem;
+  border-radius: 6px;
+}
+
+[data-theme="light"] .expr-eval-badge {
+  background: #f1f5f9;
+}
+
+.expr-kind-tag {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-subtle);
+  background: rgba(148, 163, 184, 0.1);
+  padding: 0.08rem 0.4rem;
+  border-radius: 4px;
+}
+
+.expr-error-tag {
+  font-size: 0.72rem;
+  color: var(--error);
+}
+
+/* Add Slider Prompt Bar */
+.add-slider-prompt {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding-top: 0.2rem;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.add-slider-chip {
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #60a5fa;
+  border-radius: 5px;
+  padding: 0.12rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-slider-chip:hover {
+  background: #3b82f6;
+  color: #fff;
+}
+
+/* Parameter Slider Control Panel */
+.slider-control-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-top: 0.25rem;
+}
+
+.slider-play-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: rgba(30, 41, 59, 0.8);
+  color: var(--text-main);
+  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .slider-play-btn {
+  background: #f1f5f9;
+}
+
+.slider-play-btn.playing {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.slider-bound-input {
+  width: 46px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-align: center;
+  padding: 0.15rem 0.2rem;
+}
+
+[data-theme="light"] .slider-bound-input {
+  background: #f1f5f9;
+}
+
+.desmos-slider-range {
+  flex: 1;
+  accent-color: var(--primary);
+  cursor: pointer;
+  height: 5px;
+}
+
+/* Style Popover */
+.expr-style-popover {
+  padding: 0.5rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.35rem;
+}
+
+.style-row-colors {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.color-swatch.selected {
+  border-color: #fff;
+  transform: scale(1.15);
+}
+
+.style-row-lines {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.line-style-btn {
+  flex: 1;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+
+.line-style-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* Note & Table Items */
+.expr-note-input {
+  width: 100%;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  padding: 0.4rem 0.55rem;
+  resize: vertical;
+}
+
+[data-theme="light"] .expr-note-input {
+  background: #f8fafc;
+}
+
+.expr-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.expr-table-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding-bottom: 0.2rem;
+}
+
+.table-connect-toggle {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  font-size: 0.68rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.expr-table-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+}
+
+.expr-table-row input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0.22rem 0.45rem;
+}
+
+[data-theme="light"] .expr-table-row input {
+  background: #f8fafc;
+}
+
+.table-add-row-btn {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px dashed var(--glass-border);
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 0.2rem;
+}
+
+/* Delete Row Button */
+.expr-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-subtle);
+  font-size: 1.15rem;
+  padding: 0 0.55rem;
+  cursor: pointer;
+  align-self: flex-start;
+  margin-top: 0.4rem;
+  opacity: 0.55;
+}
+
+.expr-delete-btn:hover {
+  color: var(--error);
+  opacity: 1;
+}
+
+/* ---------- Desmos Virtual Math Keypad Drawer ---------- */
+.desmos-keypad-drawer {
+  border-top: 1px solid var(--glass-border);
+  background: rgba(15, 23, 42, 0.96);
+  padding: 0.5rem 0.65rem;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .desmos-keypad-drawer {
+  background: #e2e8f0;
+}
+
+.keypad-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.keypad-header button {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.3rem;
+}
+
+.keypad-key {
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.42rem 0.2rem;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+[data-theme="light"] .keypad-key {
+  background: #ffffff;
+}
+
+.keypad-key:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.keypad-key.key-fn {
+  color: #38bdf8;
+}
+
+.keypad-key.key-var {
+  color: #c084fc;
+  font-style: italic;
+}
+
+/* ---------- Right Interactive JSXGraph Canvas ---------- */
+.graph-canvas-wrapper {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  position: relative;
+  background: #070c18;
+}
+
+[data-theme="light"] .graph-canvas-wrapper {
+  background: #f8fafc;
+}
+
+.jxg-canvas-board {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  border: none !important;
+  outline: none;
+  touch-action: none;
+}
+
+.jxg-canvas-board svg text {
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.JXGtext {
+  background-color: transparent;
+  font-family: var(--font-mono);
+  padding: 0;
+  margin: 0;
+  user-select: none;
+}
+
+.JXGinfobox {
+  border: none;
+}
+
+/* Floating Viewport Controls */
+.graph-floating-controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 20;
+}
+
+.floating-ctrl-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+}
+
+[data-theme="light"] .floating-ctrl-btn {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.floating-ctrl-btn:hover,
+.floating-ctrl-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* Graph Settings Popover */
+.graph-settings-popover {
+  position: absolute;
+  top: 14px;
+  right: 58px;
+  width: 295px;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.55);
+}
+
+.settings-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.graph-settings-popover h4 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.zoom-square-btn {
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  color: #60a5fa;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.zoom-square-btn:hover {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.axis-scale-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+}
+
+[data-theme="light"] .axis-scale-group {
+  background: rgba(241, 245, 249, 0.85);
+}
+
+.axis-scale-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.axis-quick-btns {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.axis-quick-btns button {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.12rem 0.42rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+[data-theme="light"] .axis-quick-btns button {
+  background: #ffffff;
+}
+
+.axis-quick-btns button:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.axis-bounds-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.axis-bounds-inputs input {
+  width: 100%;
+  min-width: 0;
+  background: rgba(2, 6, 23, 0.55);
+  border: 1px solid var(--glass-border);
+  border-radius: 5px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  padding: 0.24rem 0.4rem;
+  text-align: center;
+}
+
+[data-theme="light"] .axis-bounds-inputs input {
+  background: #ffffff;
+}
+
+.bounds-sep {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.axis-shortcut-tip {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+}
+
+.settings-divider {
+  height: 1px;
+  background: var(--glass-border);
+  margin: 0.1rem 0;
+}
+
+.settings-check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* Bottom Status Overlay */
+.graph-status-overlay {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 15;
+}
+
+.cursor-readout,
+.poi-hint {
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .cursor-readout,
+[data-theme="light"] .poi-hint {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+/* Help Modal */
+.graph-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1.5rem;
+}
+
+.graph-modal {
+  max-width: 680px;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.graph-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.graph-modal-header button {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.graph-modal-body {
+  padding: 1.25rem;
+}
+
+.help-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.help-card {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.help-card h4 {
+  font-size: 0.86rem;
+  color: var(--text-main);
+}
+
+.help-card p {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.help-card code {
+  background: rgba(2, 6, 23, 0.65);
+  padding: 0.3rem 0.5rem;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: #38bdf8;
+}
+
+@media (max-width: 768px) {
+  .graph-workspace {
+    flex-direction: column;
+  }
+  .graph-sidebar {
+    width: 100%;
+    max-width: none;
+    height: 45%;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+  }
+}

@@ -1,0 +1,1178 @@
+/* ============================================================
+   MATLAB & Matplotlib Code-to-Diagram Studio — Styles
+   Dark Purple Glassmorphism Theme + Clean Light Mode Support
+   ============================================================ */
+
+.code-plotter-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--navbar-h, 64px));
+  width: 100%;
+  background: var(--bg-darkest, #020617);
+  color: var(--text-main, #f8fafc);
+  overflow: hidden;
+  position: relative;
+}
+
+.code-plotter-page.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  width: 100vw;
+  z-index: 9999;
+}
+
+/* ---------- Top Control Bar ---------- */
+.plot-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.85rem;
+  min-height: 48px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  gap: 0.65rem;
+  z-index: 25;
+  overflow-x: auto;
+}
+
+[data-theme="light"] .plot-topbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.plot-bar-left,
+.plot-bar-center,
+.plot-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.plot-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.plot-logo-icon {
+  font-size: 1.15rem;
+}
+
+.plot-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.plot-engine-badge {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.14rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #10b981;
+  white-space: nowrap;
+}
+
+.preset-selector-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.preset-select {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  padding: 0.28rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  max-width: 245px;
+  text-overflow: ellipsis;
+}
+
+[data-theme="light"] .preset-select {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+/* ---------- Pill Groups ---------- */
+.pill-group {
+  display: inline-flex;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .pill-group {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.pill-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.73rem;
+  font-weight: 600;
+  padding: 0.26rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+[data-theme="light"] .pill-btn {
+  color: #475569;
+}
+
+.pill-btn.active {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 0.28rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .action-icon-btn {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.action-icon-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-main);
+}
+
+[data-theme="light"] .action-icon-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.toggle-label input {
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.run-btn {
+  padding: 0.3rem 0.8rem;
+  font-size: 0.78rem;
+  gap: 0.35rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.kbd-shortcut {
+  font-size: 0.64rem;
+  opacity: 0.85;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.08rem 0.28rem;
+  border-radius: 4px;
+}
+
+/* ====================================================================
+   Main Work Area: Split Editor & Diagram Viewport
+   ==================================================================== */
+.plot-workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ---------- Left Pane: Editor & Drawers ---------- */
+.editor-pane {
+  flex: 0 0 42%;
+  min-width: 340px;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--glass-border);
+  background: rgba(15, 23, 42, 0.68);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+[data-theme="light"] .editor-pane {
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.85rem;
+  height: 38px;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+[data-theme="light"] .editor-header {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.editor-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.editor-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .editor-title {
+  color: #475569;
+}
+
+.editor-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.lang-mini-select {
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid var(--glass-border);
+  color: var(--primary);
+  border-radius: 5px;
+  padding: 0.16rem 0.48rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+}
+
+[data-theme="light"] .lang-mini-select {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #4f46e5;
+}
+
+/* Editor with line numbers */
+.code-editor-wrapper {
+  display: flex;
+  flex: 1;
+  min-height: 200px;
+  overflow: hidden;
+  position: relative;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.line-numbers {
+  width: 44px;
+  padding: 0.75rem 8px 0.75rem 0;
+  background: rgba(2, 6, 23, 0.4);
+  color: var(--text-subtle);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  text-align: right;
+  user-select: none;
+  overflow: hidden;
+  border-right: 1px solid var(--glass-border);
+}
+
+[data-theme="light"] .line-numbers {
+  background: #f8fafc;
+  color: #94a3b8;
+  border-right: 1px solid #e2e8f0;
+}
+
+.code-textarea {
+  flex: 1;
+  padding: 0.75rem 0.9rem;
+  background: transparent;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  border: none;
+  outline: none;
+  resize: none;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+}
+
+[data-theme="light"] .code-textarea {
+  color: #0f172a;
+}
+
+/* Bottom Tab Drawer */
+.editor-bottom-drawer {
+  flex: 0 0 155px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--glass-border);
+  background: rgba(2, 6, 23, 0.75);
+  transition: flex-basis 0.18s ease;
+}
+
+.editor-bottom-drawer.is-collapsed {
+  flex: 0 0 auto;
+}
+
+[data-theme="light"] .editor-bottom-drawer {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+
+.drawer-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(15, 23, 42, 0.45);
+  padding-right: 0.5rem;
+}
+
+[data-theme="light"] .drawer-tabs {
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.drawer-tabs-left {
+  display: flex;
+  align-items: center;
+}
+
+.drawer-tab-btn {
+  background: transparent;
+  border: none;
+  padding: 0.38rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+[data-theme="light"] .drawer-tab-btn {
+  color: #475569;
+}
+
+.drawer-tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.drawer-collapse-btn {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 0.12rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+[data-theme="light"] .drawer-collapse-btn {
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+/* Mobile View Switcher (Hidden on Desktop > 900px) */
+.mobile-view-switcher {
+  display: none;
+}
+
+.drawer-content {
+  flex: 1;
+  overflow: auto;
+  padding: 0.45rem 0.85rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.76rem;
+}
+
+.console-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.console-empty,
+.workspace-empty {
+  color: var(--text-subtle);
+  font-style: italic;
+  padding: 0.35rem 0;
+}
+
+.console-line {
+  color: var(--text-muted);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.variables-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.variables-table th {
+  color: var(--text-subtle);
+  font-size: 0.7rem;
+  padding: 0.22rem 0.5rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.variables-table td {
+  padding: 0.22rem 0.5rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.var-name {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .var-name {
+  color: #38bdf8;
+}
+
+.var-size {
+  color: var(--text-subtle);
+}
+
+.var-num {
+  color: var(--primary);
+}
+
+/* ====================================================================
+   Right Pane: Diagram Viewport
+   ==================================================================== */
+.diagram-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-darkest, #020617);
+}
+
+.diagram-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.85rem;
+  min-height: 40px;
+  background: rgba(15, 23, 42, 0.55);
+  border-bottom: 1px solid var(--glass-border);
+  gap: 0.5rem;
+  position: relative;
+  z-index: 20;
+}
+
+[data-theme="light"] .diagram-toolbar {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.diagram-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+}
+
+.diagram-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+[data-theme="light"] .diagram-title {
+  color: #475569;
+}
+
+.diagram-meta {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-dim);
+  padding: 0.08rem 0.45rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.rendering-inline-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  padding: 0.08rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.diagram-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.toolbar-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .toolbar-select-label {
+  color: #475569;
+}
+
+.toolbar-mini-select {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  border-radius: 6px;
+  height: 28px;
+  padding: 0 0.45rem;
+  font-size: 0.73rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+[data-theme="light"] .toolbar-mini-select {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.zoom-controls-group {
+  display: inline-flex;
+  align-items: stretch;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  height: 28px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .zoom-controls-group {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.zoom-step-btn,
+.zoom-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.zoom-step-btn {
+  min-width: 28px;
+  font-size: 0.92rem;
+}
+
+[data-theme="light"] .zoom-step-btn,
+[data-theme="light"] .zoom-reset-btn {
+  color: #1e293b;
+}
+
+.zoom-reset-btn {
+  border-left: 1px solid var(--glass-border);
+  border-right: 1px solid var(--glass-border);
+  min-width: 46px;
+  text-align: center;
+}
+
+[data-theme="light"] .zoom-reset-btn {
+  border-color: #cbd5e1;
+}
+
+.zoom-step-btn:hover,
+.zoom-reset-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--primary);
+}
+
+[data-theme="light"] .zoom-step-btn:hover,
+[data-theme="light"] .zoom-reset-btn:hover {
+  background: #f1f5f9;
+  color: var(--primary);
+}
+
+/* Export Dropdown Menu */
+.export-dropdown-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.diagram-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 28px;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  border-radius: 6px;
+  padding: 0 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+[data-theme="light"] .diagram-export-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.diagram-export-btn:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--primary);
+}
+
+[data-theme="light"] .diagram-export-btn:hover {
+  background: #f1f5f9;
+  border-color: var(--primary);
+}
+
+.export-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 195px;
+  background: #0f172a;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  z-index: 100;
+}
+
+[data-theme="light"] .export-dropdown-menu {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+}
+
+.export-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.45rem 0.65rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+[data-theme="light"] .export-dropdown-item {
+  color: #1e293b;
+}
+
+.export-dropdown-item:hover {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--primary);
+}
+
+.diagram-canvas-container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  display: flex;
+}
+
+.diagram-canvas-container.canvas-bg-light {
+  background: #f1f5f9;
+}
+
+.diagram-canvas-container.canvas-bg-dark {
+  background: #020617;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  z-index: 50;
+}
+
+.loading-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(139, 92, 246, 0.25);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+/* Empty State */
+.plot-empty-state {
+  margin: auto;
+  text-align: center;
+  padding: 3rem 1.5rem;
+}
+
+.empty-icon {
+  font-size: 2.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.plot-empty-state h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  color: var(--text-main);
+}
+
+.plot-empty-state p {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+/* Pyodide Viewport */
+.pyodide-viewport {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.15rem;
+  overflow: auto;
+}
+
+.pyodide-figures-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  width: 100%;
+  max-width: 880px;
+  transition: max-width 0.15s ease;
+}
+
+.pyodide-figure-card {
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
+  padding: 0.5rem;
+}
+
+.pyodide-figure-card.fig-card-light {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.pyodide-figure-card.fig-card-dark {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.pyodide-fig-img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Help Modal */
+.help-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1.5rem;
+}
+
+.help-modal {
+  width: 100%;
+  max-width: 680px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-dark);
+}
+
+.help-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.help-modal-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.help-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.help-modal-body {
+  padding: 1.25rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.help-section h4 {
+  font-size: 0.88rem;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.help-section ul {
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.help-section code {
+  background: rgba(139, 92, 246, 0.12);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  color: var(--primary);
+  font-family: var(--font-mono, monospace);
+}
+
+/* ====================================================================
+   Responsive Tablet & Mobile Layout (<= 1024px, <= 900px, <= 640px)
+   ==================================================================== */
+@media (max-width: 1080px) {
+  .plot-topbar {
+    flex-wrap: wrap;
+    padding: 0.45rem 0.75rem;
+    gap: 0.45rem;
+    min-height: auto;
+  }
+
+  .preset-select {
+    max-width: 210px;
+  }
+
+  .kbd-shortcut {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .code-plotter-page {
+    height: auto;
+    min-height: calc(100vh - var(--navbar-h, 64px));
+    overflow-y: auto;
+  }
+
+  .code-plotter-page.is-fullscreen {
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  /* Show Mobile View Switcher Bar */
+  .mobile-view-switcher {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.35rem;
+    padding: 0.4rem 0.65rem;
+    background: rgba(15, 23, 42, 0.9);
+    border-bottom: 1px solid var(--glass-border);
+    position: sticky;
+    top: 0;
+    z-index: 24;
+  }
+
+  [data-theme="light"] .mobile-view-switcher {
+    background: #f1f5f9;
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  .mobile-tab-btn {
+    background: rgba(30, 41, 59, 0.65);
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 0.42rem 0.5rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+
+  [data-theme="light"] .mobile-tab-btn {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #475569;
+  }
+
+  .mobile-tab-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+  }
+
+  /* Stack Editor and Diagram Vertically */
+  .plot-workspace {
+    flex-direction: column;
+    overflow: visible;
+    flex: 1;
+  }
+
+  .editor-pane {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  [data-theme="light"] .editor-pane {
+    border-right: none;
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  /* Split Mode on Mobile: Balanced heights for both panes */
+  .plot-workspace.mobile-mode-split .code-editor-wrapper {
+    min-height: 240px;
+    max-height: 320px;
+  }
+
+  .plot-workspace.mobile-mode-split .editor-bottom-drawer.is-open {
+    flex: 0 0 130px;
+  }
+
+  .plot-workspace.mobile-mode-split .diagram-pane {
+    min-height: 440px;
+  }
+
+  /* Single-Pane Editor Mode on Mobile */
+  .plot-workspace.mobile-mode-editor .diagram-pane {
+    display: none;
+  }
+
+  .plot-workspace.mobile-mode-editor .editor-pane {
+    flex: 1;
+    min-height: calc(100vh - 165px);
+  }
+
+  .plot-workspace.mobile-mode-editor .code-editor-wrapper {
+    min-height: 360px;
+  }
+
+  /* Single-Pane Diagram Mode on Mobile */
+  .plot-workspace.mobile-mode-diagram .editor-pane {
+    display: none;
+  }
+
+  .plot-workspace.mobile-mode-diagram .diagram-pane {
+    flex: 1;
+    min-height: calc(100vh - 165px);
+  }
+
+  /* Wrap Diagram Toolbar cleanly on Mobile */
+  .diagram-toolbar {
+    height: auto;
+    min-height: 38px;
+    flex-wrap: wrap;
+    padding: 0.45rem 0.65rem;
+    gap: 0.4rem;
+  }
+
+  .diagram-actions {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 0.35rem;
+    justify-content: flex-start;
+  }
+
+  .pyodide-viewport {
+    padding: 0.6rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .plot-topbar {
+    padding: 0.45rem 0.55rem;
+    gap: 0.4rem;
+  }
+
+  .plot-bar-left {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.35rem;
+  }
+
+  .plot-title-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .plot-title {
+    font-size: 0.86rem;
+  }
+
+  .preset-selector-wrap {
+    width: 100%;
+  }
+
+  .preset-select {
+    width: 100%;
+    max-width: 100%;
+    padding: 0.36rem 0.55rem;
+    font-size: 0.8rem;
+  }
+
+  .plot-bar-center,
+  .plot-bar-right {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .plot-bar-right {
+    margin-left: auto;
+  }
+
+  .btn-label-text {
+    display: none;
+  }
+
+  .code-textarea {
+    font-size: 0.82rem;
+    padding: 0.6rem 0.65rem;
+  }
+
+  .line-numbers {
+    width: 36px;
+    padding: 0.6rem 6px 0.6rem 0;
+    font-size: 0.75rem;
+  }
+
+  .pyodide-figure-card {
+    padding: 0.25rem;
+    border-radius: 8px;
+  }
+
+  .help-modal-overlay {
+    padding: 0.65rem;
+  }
+
+  .help-modal {
+    max-height: 90vh;
+  }
+}

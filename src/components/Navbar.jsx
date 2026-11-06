@@ -121,6 +121,83 @@ export default function Navbar({ theme, onToggleTheme, live2dEnabled, onToggleLi
         </div>
       )}
 
+      {/* Graphing Calculator Actions */}
+      {pathname === '/graphing-calculator' && (
+        <div className="navbar-circuit-actions">
+          <button
+            type="button"
+            className="navbar-sim-btn"
+            onClick={() => window.dispatchEvent(new CustomEvent('toggle-graph-keypad'))}
+            title="Toggle Virtual Math Keypad"
+          >
+            <span>⌨️ Math Keypad</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-ghost navbar-sim-icon-btn"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-graph-help-modal'))}
+            title="Math Syntax & Help"
+            aria-label="Graphing Help"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-ghost navbar-sim-icon-btn"
+            onClick={() => window.dispatchEvent(new CustomEvent('toggle-graph-fullscreen'))}
+            title="Toggle Fullscreen"
+            aria-label="Toggle Fullscreen"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 3 21 3 21 9" />
+              <polyline points="9 21 3 21 3 15" />
+              <line x1="21" y1="3" x2="14" y2="10" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* MATLAB & Matplotlib Studio Actions */}
+      {pathname === '/code-plotter' && (
+        <div className="navbar-circuit-actions">
+          <button
+            type="button"
+            className="btn btn-ghost navbar-sim-icon-btn"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-codeplot-help-modal'))}
+            title="Syntax & Supported Functions Help"
+            aria-label="Syntax Help"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-ghost navbar-sim-icon-btn"
+            onClick={() => window.dispatchEvent(new CustomEvent('toggle-codeplot-fullscreen'))}
+            title="Toggle Fullscreen"
+            aria-label="Toggle Fullscreen"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 3 21 3 21 9" />
+              <polyline points="9 21 3 21 3 15" />
+              <line x1="21" y1="3" x2="14" y2="10" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Live2D Companion Toggle */}
       <button
         className={`btn btn-ghost live2d-toggle ${live2dEnabled ? 'active' : ''}`}
